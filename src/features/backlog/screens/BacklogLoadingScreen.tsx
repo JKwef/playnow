@@ -39,14 +39,19 @@ export function BacklogLoadingScreen({ navigation }: RootStackScreenProps<'Backl
   }
 
   if (status === 'ready' && !hasGames) {
-    // FR2.6. Ручное добавление игр появится вместе с экраном списка (этап 7).
+    // FR2.6: пустая библиотека Steam. Можно добавить игры вручную.
     return (
       <Screen withTopInset centered>
         <Text accessibilityRole="header" style={styles.title}>
           У вас нет игр в Steam
         </Text>
         <Text style={styles.subtitle}>Добавьте игры вручную или обновите список позже</Text>
-        <Button label="Продолжить" onPress={() => navigation.replace('Picker')} />
+        <Button label="Добавить игру вручную" onPress={() => navigation.navigate('AddGame')} />
+        <Button
+          label="Продолжить"
+          variant="secondary"
+          onPress={() => navigation.replace('Picker')}
+        />
         <Button
           label={isRefreshing ? 'Загружаем…' : 'Обновить'}
           variant="tertiary"

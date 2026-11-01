@@ -3,6 +3,7 @@ import { fetchWithTimeout } from '@/shared/services/http';
 import { getSupabase } from '@/shared/services/supabase';
 
 import type { FunctionsClientDeps } from './functionsClient';
+import { createManualGameService, type ManualGameService } from './manualGames';
 import { createRawgEnrichmentService, type RawgEnrichmentService } from './rawgApi';
 import { createSteamLibraryService, type SteamLibraryService } from './steamApi';
 
@@ -37,4 +38,12 @@ export const getSteamLibrary = (): SteamLibraryService => {
 export const getRawgEnrichment = (): RawgEnrichmentService => {
   enrichment ??= createRawgEnrichmentService(getFunctionsDeps());
   return enrichment;
+};
+
+let manualGames: ManualGameService | null = null;
+
+/** Боевой сервис ручного добавления игр (ленивый синглтон). */
+export const getManualGames = (): ManualGameService => {
+  manualGames ??= createManualGameService({ getClient: getSupabase });
+  return manualGames;
 };

@@ -5,7 +5,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 
 import { createBacklogCache, type BacklogCache } from '../services/backlogCache';
 import { backlogErrorCode, backlogErrorMessage } from '../services/backlogErrors';
-import { getRawgEnrichment, getSteamLibrary } from '../services/defaultSteamLibrary';
+import { getRawgEnrichment, getSteamLibrary } from '../services/defaultServices';
 import { mergeGames, runEnrichment, type RawgEnrichmentService } from '../services/rawgApi';
 import type { SteamLibraryService } from '../services/steamApi';
 import type { BacklogErrorCode, BacklogSnapshot, Game } from '../types/Game';

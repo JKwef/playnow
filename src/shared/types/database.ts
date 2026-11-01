@@ -32,6 +32,8 @@ export interface Database {
           playtime: number;
           created_at: string;
           updated_at: string;
+          /** Когда игру искали в RAWG (пишет только Edge Function rawg-enrich). */
+          rawg_checked_at: string | null;
         };
         Insert: {
           user_id: string;

@@ -1,6 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useEffect } from 'react';
 
+import { AddGameScreen } from '@/features/backlog/screens/AddGameScreen';
 import { BacklogScreen } from '@/features/backlog/screens/BacklogScreen';
 import { BacklogLoadingScreen } from '@/features/backlog/screens/BacklogLoadingScreen';
 import { GameDetailsScreen } from '@/features/backlog/screens/GameDetailsScreen';
@@ -69,6 +70,11 @@ export function RootNavigator() {
             name="GameDetails"
             component={GameDetailsScreen}
             options={{ title: 'Игра' }}
+          />
+          <Stack.Screen
+            name="AddGame"
+            component={AddGameScreen}
+            options={{ title: 'Новая игра' }}
           />
           <Stack.Screen
             name="Settings"

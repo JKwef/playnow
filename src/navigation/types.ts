@@ -14,6 +14,7 @@ export type RootStackParamList = {
   Result: { contextId: string };
   Backlog: undefined;
   GameDetails: { appid: number };
+  AddGame: undefined;
   Settings: undefined;
 };
 
