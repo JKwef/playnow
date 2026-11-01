@@ -64,6 +64,11 @@ export const buildOwnedGamesUrl = (apiKey: string, steamId: string): string => {
     include_appinfo: 'true',
     // Бесплатные игры, в которые пользователь заходил (Dota 2, CS2...), тоже часть бэклога.
     include_played_free_games: 'true',
+    // Игры, полученные по бесплатной лицензии (раздачи «бесплатно навсегда»): без этого
+    // флага Steam их не отдаёт, хотя они лежат в библиотеке (Depths Of Horror: Mushroom Day).
+    include_free_sub: 'true',
+    // Игры, снятые с продажи или ещё не прошедшие проверку магазина, тоже часть библиотеки.
+    skip_unvetted_apps: 'false',
   });
   return `${GET_OWNED_GAMES_URL}?${params.toString()}`;
 };

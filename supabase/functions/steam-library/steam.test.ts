@@ -71,4 +71,6 @@ Deno.test('buildOwnedGamesUrl: параметры из ТЗ', () => {
   assertEquals(url.searchParams.get('steamid'), '76561197960287930');
   assertEquals(url.searchParams.get('include_appinfo'), 'true');
   assertEquals(url.searchParams.get('format'), 'json');
+  assertEquals(url.searchParams.get('include_free_sub'), 'true');
+  assertEquals(url.searchParams.get('skip_unvetted_apps'), 'false');
 });
