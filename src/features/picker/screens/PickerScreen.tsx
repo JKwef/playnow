@@ -1,23 +1,21 @@
-import { useLayoutEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useCallback, useLayoutEffect, useMemo } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
-import { Button } from '@/shared/components/Button';
-import { Placeholder } from '@/shared/components/Placeholder';
-import { Screen } from '@/shared/components/Screen';
-import { spacing } from '@/shared/constants';
+import { useBacklog } from '@/features/backlog/hooks/useBacklog';
 import type { RootStackScreenProps } from '@/navigation/types';
+import { Button } from '@/shared/components/Button';
+import { Screen } from '@/shared/components/Screen';
+import { colors, fontSize, spacing } from '@/shared/constants';
 
-// Временный список; полноценные контексты с тегами (FR4.1) появятся на этапе 8.
-const DEMO_CONTEXTS = [
-  { id: 'short-session', label: 'У меня 30 минут' },
-  { id: 'addictive', label: 'Хочу залипательное' },
-  { id: 'story', label: 'Хочу сюжетку' },
-  { id: 'action', label: 'Хочу экшен' },
-] as const;
+import { ContextCard } from '../components/ContextCard';
+import type { ContextId } from '../types';
+import { PICKER_CONTEXTS } from '../utils/contexts';
+import { matchesContext } from '../utils/pickGame';
 
-/** Главный экран Solo Mode. Отсюда же переходы в список игр и настройки. */
+/** Главный экран Solo Mode (FR4.1, UI2): четыре карточки контекста сеткой 2×2. */
 export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
-  // Кнопки в шапке ставим через setOptions, чтобы замыкать navigation этого экрана.
+  const { games, genresStatus } = useBacklog();
+
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
@@ -39,26 +37,62 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
     });
   }, [navigation]);
 
+  const counts = useMemo(
+    () =>
+      new Map(
+        PICKER_CONTEXTS.map((context) => [
+          context.id,
+          (games ?? []).filter((game) => matchesContext(game, context)).length,
+        ]),
+      ),
+    [games],
+  );
+
+  const open = useCallback(
+    (contextId: ContextId) => navigation.navigate('Result', { contextId }),
+    [navigation],
+  );
+
+  const [first, second, third, fourth] = PICKER_CONTEXTS;
+
   return (
     <Screen>
-      <Placeholder title="Во что поиграть?" stage={8} />
-      {DEMO_CONTEXTS.map((context) => (
-        <Button
-          key={context.id}
-          label={context.label}
-          variant="secondary"
-          onPress={() => navigation.navigate('Result', { contextId: context.id })}
-        />
+      <Text accessibilityRole="header" style={styles.title}>
+        Во что поиграть?
+      </Text>
+      <Text style={styles.subtitle}>
+        {games === undefined
+          ? 'Загружаем ваши игры…'
+          : `Выберем из ${games.length} игр вашего бэклога`}
+        {genresStatus === 'loading' ? '. Жанры ещё загружаются' : ''}
+      </Text>
+      {[
+        [first, second],
+        [third, fourth],
+      ].map((row, index) => (
+        <View key={index} style={styles.row}>
+          {row.map((context) =>
+            context === undefined ? null : (
+              <ContextCard
+                key={context.id}
+                context={context}
+                matchingCount={counts.get(context.id) ?? 0}
+                onPress={open}
+              />
+            ),
+          )}
+        </View>
       ))}
-      <Button
-        label="Экран загрузки бэклога"
-        variant="tertiary"
-        onPress={() => navigation.navigate('BacklogLoading')}
-      />
+      {games !== undefined && games.length === 0 && (
+        <Button label="Добавить игру вручную" onPress={() => navigation.navigate('AddGame')} />
+      )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   headerActions: { flexDirection: 'row', gap: spacing.xs },
+  title: { color: colors.textPrimary, fontSize: fontSize.title, fontWeight: '700' },
+  subtitle: { color: colors.textSecondary, fontSize: fontSize.body },
+  row: { flexDirection: 'row', gap: spacing.sm },
 });
