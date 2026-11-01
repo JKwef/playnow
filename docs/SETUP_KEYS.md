@@ -48,7 +48,7 @@ RAWG требует указывать источник: ставить ссыл
 cp .env.example .env
 ```
 
-Заполните `SUPABASE_URL` и `SUPABASE_ANON_KEY`. Строки `STEAM_API_KEY` и `RAWG_API_KEY` в `.env` нужны только как
+`SUPABASE_URL` и `SUPABASE_ANON_KEY` заполнять не обязательно: значения проекта уже лежат в `app.json` → `extra`.
 источник для команды ниже. В приложение они не попадают (это обеспечивает `app.config.ts`).
 
 ### На сервере, в секретах Supabase Edge Functions
