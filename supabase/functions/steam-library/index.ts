@@ -62,13 +62,14 @@ Deno.serve(async (req) => {
   if (result.kind === 'private') return json(403, { error: 'private_profile' });
 
   if (result.games.length > 0) {
-    // Обновляем только то, что знает Steam. genres не трогаем: их заполняет обогащение из RAWG.
+    // Обновляем только то, что знает Steam. genres и cover_url не трогаем: их находит
+    // rawg-enrich (обложку проверяет по-настоящему, шаблонный адрес Steam бывает 404).
     const rows = result.games.map((game) => ({
       user_id: user.id,
       appid: game.appid,
       name: game.name,
       playtime: game.playtime,
-      cover_url: game.coverUrl,
+      last_played_at: game.lastPlayedAt,
     }));
     const upsert = await admin.from('games').upsert(rows, { onConflict: 'user_id,appid' });
     if (upsert.error) {
@@ -81,7 +82,7 @@ Deno.serve(async (req) => {
   // и игры, добавленные вручную (FR2.6).
   const { data, error } = await admin
     .from('games')
-    .select('appid, name, cover_url, genres, playtime, created_at')
+    .select('appid, name, cover_url, genres, playtime, created_at, last_played_at')
     .eq('user_id', user.id)
     .order('name');
   if (error) {

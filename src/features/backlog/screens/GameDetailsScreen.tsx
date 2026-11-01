@@ -6,7 +6,7 @@ import { Button } from '@/shared/components/Button';
 import { LoadingIndicator } from '@/shared/components/LoadingIndicator';
 import { Screen } from '@/shared/components/Screen';
 import { colors, fontSize, radius, spacing } from '@/shared/constants';
-import { formatPlaytime } from '@/shared/utils/format';
+import { formatDateTime, formatPlaytime } from '@/shared/utils/format';
 
 import { GameCover } from '../components/GameCover';
 import { useBacklog } from '../hooks/useBacklog';
@@ -43,6 +43,9 @@ export function GameDetailsScreen({ route, navigation }: RootStackScreenProps<'G
         {game.name}
       </Text>
       <Text style={styles.secondary}>Время в игре: {formatPlaytime(game.playtimeMinutes)}</Text>
+      {game.lastPlayedAt !== null && (
+        <Text style={styles.secondary}>Последний запуск: {formatDateTime(game.lastPlayedAt)}</Text>
+      )}
       {game.genres.length > 0 ? (
         <View
           style={styles.genres}

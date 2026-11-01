@@ -10,6 +10,8 @@ export interface Game {
   playtimeMinutes: number;
   /** Когда игра появилась в бэклоге (ISO). Нужна для сортировки «по дате добавления». */
   addedAt: string;
+  /** Последний запуск в Steam (ISO) или null: не запускалась или игра ручная. */
+  lastPlayedAt: string | null;
 }
 
 export type BacklogErrorCode =

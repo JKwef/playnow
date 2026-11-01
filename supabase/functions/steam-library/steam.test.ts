@@ -1,14 +1,20 @@
 // Запуск: deno test supabase/functions/steam-library/
 import { assertEquals, assertThrows } from 'jsr:@std/assert@1';
 
-import { buildOwnedGamesUrl, parseOwnedGames, steamCoverUrl } from './steam.ts';
+import { buildOwnedGamesUrl, parseOwnedGames } from './steam.ts';
 
 Deno.test('parseOwnedGames: обычный ответ', () => {
   const result = parseOwnedGames({
     response: {
       game_count: 2,
       games: [
-        { appid: 730, name: 'Counter-Strike 2', playtime_forever: 1234.9, img_icon_url: 'x' },
+        {
+          appid: 730,
+          name: 'Counter-Strike 2',
+          playtime_forever: 1234.9,
+          img_icon_url: 'x',
+          rtime_last_played: 1700000000,
+        },
         { appid: 570, name: '  Dota 2 ', playtime_forever: 0 },
       ],
     },
@@ -16,8 +22,13 @@ Deno.test('parseOwnedGames: обычный ответ', () => {
   assertEquals(result, {
     kind: 'ok',
     games: [
-      { appid: 730, name: 'Counter-Strike 2', playtime: 1234, coverUrl: steamCoverUrl(730) },
-      { appid: 570, name: 'Dota 2', playtime: 0, coverUrl: steamCoverUrl(570) },
+      {
+        appid: 730,
+        name: 'Counter-Strike 2',
+        playtime: 1234,
+        lastPlayedAt: '2023-11-14T22:13:20.000Z',
+      },
+      { appid: 570, name: 'Dota 2', playtime: 0, lastPlayedAt: null },
     ],
   });
 });
@@ -45,7 +56,7 @@ Deno.test('parseOwnedGames: мусорные записи пропускаютс
   });
   assertEquals(result, {
     kind: 'ok',
-    games: [{ appid: 440, name: 'App 440', playtime: 0, coverUrl: steamCoverUrl(440) }],
+    games: [{ appid: 440, name: 'App 440', playtime: 0, lastPlayedAt: null }],
   });
 });
 

@@ -8,13 +8,14 @@ export const formatPlaytime = (minutes: number): string => {
   return rest === 0 ? `${hours} ч` : `${hours} ч ${rest} мин`;
 };
 
-/** Короткая дата и время по-русски: «1 нояб., 22:04». */
-export const formatDateTime = (iso: string): string => {
+/** Короткая дата и время по-русски: «1 нояб., 22:04»; для прошлых лет с годом: «5 мар. 2021 г., 18:30». */
+export const formatDateTime = (iso: string, now: Date = new Date()): string => {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleString('ru-RU', {
     day: 'numeric',
     month: 'short',
+    ...(date.getFullYear() !== now.getFullYear() ? { year: 'numeric' as const } : {}),
     hour: '2-digit',
     minute: '2-digit',
   });

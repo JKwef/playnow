@@ -1,5 +1,5 @@
 /**
- * Edge Function: жанры и недостающие обложки из RAWG (FR2.3).
+ * Edge Function: жанры из RAWG и проверенные обложки (Steam, затем RAWG) (FR2.3).
  *
  * Steam не отдаёт жанры, поэтому после импорта клиент вызывает эту функцию, пока
  * remaining не станет 0. За один вызов обрабатывается партия игр, которые ещё не
@@ -21,6 +21,7 @@ import { getRequestUser } from '../_shared/auth.ts';
 import { json, UPSTREAM_TIMEOUT_MS } from '../_shared/http.ts';
 import { enrichGames, type PendingGame, RawgFatalError } from './enrich.ts';
 import { buildSearchUrl, pickRawgMatch, type RawgMatch } from './rawg.ts';
+import { findSteamCover } from './steamCover.ts';
 
 const SUPABASE_URL = requireEnv('SUPABASE_URL');
 const SERVICE_ROLE_KEY = readApiKey('SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SECRET_KEYS');
@@ -34,7 +35,7 @@ const CONCURRENCY = 5;
 /** Новые запросы не начинаем позже этого срока (лимит функции намного больше). */
 const TIME_BUDGET_MS = 25_000;
 
-const GAME_COLUMNS = 'appid, name, cover_url, genres, playtime, created_at';
+const GAME_COLUMNS = 'appid, name, cover_url, genres, playtime, created_at, last_played_at';
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -65,7 +66,7 @@ Deno.serve(async (req) => {
 
   const pending = await admin
     .from('games')
-    .select('id, name, cover_url, genres')
+    .select('id, appid, name, cover_url, genres')
     .eq('user_id', user.id)
     .is('rawg_checked_at', null)
     .order('playtime', { ascending: true })
@@ -78,6 +79,7 @@ Deno.serve(async (req) => {
 
   const games: PendingGame[] = (pending.data ?? []).map((row) => ({
     id: String(row.id),
+    appid: Number(row.appid),
     name: String(row.name),
     coverUrl: typeof row.cover_url === 'string' ? row.cover_url : null,
     genres: asStrings(row.genres),
@@ -85,6 +87,7 @@ Deno.serve(async (req) => {
 
   const result = await enrichGames(games, {
     findMatch,
+    findSteamCover: (appid) => findSteamCover(appid, { fetch, timeoutMs: UPSTREAM_TIMEOUT_MS }),
     save: async (update) => {
       const { error } = await admin
         .from('games')

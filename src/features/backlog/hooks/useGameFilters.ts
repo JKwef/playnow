@@ -30,7 +30,19 @@ export const useGameFilters = (games: readonly Game[]) => {
     () => filterAndSortGames(games, { query: debouncedQuery, genres, sort }),
     [games, debouncedQuery, genres, sort],
   );
-  const availableGenres = useMemo(() => collectGenres(games), [games]);
+  /*
+   * Варианты фильтра считаем по уже отфильтрованному списку: число рядом с жанром —
+   * сколько игр останется, если добавить его. Жанры, которые дали бы пустой список,
+   * не показываем. Выбранные жанры остаются в списке всегда, чтобы их можно было снять.
+   */
+  const availableGenres = useMemo(() => {
+    const counts = collectGenres(visibleGames);
+    const present = new Set(counts.map((item) => item.genre));
+    const selectedMissing = genres
+      .filter((genre) => !present.has(genre))
+      .map((genre) => ({ genre, count: 0 }));
+    return [...selectedMissing, ...counts];
+  }, [visibleGames, genres]);
 
   return {
     query,

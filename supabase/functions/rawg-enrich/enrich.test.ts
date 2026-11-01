@@ -1,10 +1,17 @@
 // Запуск: deno test supabase/functions/rawg-enrich/
 import { assertEquals } from 'jsr:@std/assert@1';
 
-import { enrichGames, type GameUpdate, type PendingGame, RawgFatalError } from './enrich.ts';
+import {
+  enrichGames,
+  type GameUpdate,
+  type PendingGame,
+  RawgFatalError,
+  resolveCover,
+} from './enrich.ts';
 
 const game = (id: string, extra: Partial<PendingGame> = {}): PendingGame => ({
   id,
+  appid: Number(id) + 1,
   name: `Game ${id}`,
   coverUrl: `https://steam/${id}.jpg`,
   genres: [],
@@ -12,6 +19,7 @@ const game = (id: string, extra: Partial<PendingGame> = {}): PendingGame => ({
 });
 
 const baseDeps = (saved: GameUpdate[]) => ({
+  findSteamCover: () => Promise.resolve(null),
   save: (update: GameUpdate) => {
     saved.push(update);
     return Promise.resolve();
@@ -108,4 +116,52 @@ Deno.test('enrichGames: не больше concurrency запросов одно�
     },
   );
   assertEquals(peak, 4);
+});
+
+const TEMPLATE = (appid: number) =>
+  `https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/header.jpg`;
+
+Deno.test('resolveCover: своя обложка остаётся, Steam не спрашиваем', async () => {
+  let calls = 0;
+  const find = () => {
+    calls += 1;
+    return Promise.resolve('https://x.steamstatic.com/a.jpg');
+  };
+  assertEquals(
+    await resolveCover({ appid: 1, coverUrl: 'https://media.rawg.io/a.jpg' }, null, find),
+    'https://media.rawg.io/a.jpg',
+  );
+  assertEquals(calls, 0);
+});
+
+Deno.test('resolveCover: шаблон Steam проверяется, при 404 — обложка RAWG', async () => {
+  assertEquals(
+    await resolveCover({ appid: 7, coverUrl: TEMPLATE(7) }, 'https://rawg/c.jpg', () =>
+      Promise.resolve('https://s.steamstatic.com/h.jpg'),
+    ),
+    'https://s.steamstatic.com/h.jpg',
+  );
+  assertEquals(
+    await resolveCover({ appid: 7, coverUrl: TEMPLATE(7) }, 'https://rawg/c.jpg', () =>
+      Promise.resolve(null),
+    ),
+    'https://rawg/c.jpg',
+  );
+  assertEquals(
+    await resolveCover({ appid: 7, coverUrl: null }, null, () => Promise.resolve(null)),
+    null,
+  );
+});
+
+Deno.test('resolveCover: ручная игра без appid Steam не ходит в Steam', async () => {
+  let calls = 0;
+  const cover = await resolveCover(
+    { appid: 2_000_000_123, coverUrl: null },
+    'https://rawg/c.jpg',
+    () => {
+      calls += 1;
+      return Promise.resolve(null);
+    },
+  );
+  assertEquals([cover, calls], ['https://rawg/c.jpg', 0]);
 });

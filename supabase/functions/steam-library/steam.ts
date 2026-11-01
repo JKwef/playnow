@@ -3,16 +3,13 @@
  */
 
 export const GET_OWNED_GAMES_URL = 'https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/';
-/** Горизонтальная обложка магазина Steam (460x215). Есть почти у всех игр. */
-export const steamCoverUrl = (appid: number): string =>
-  `https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/header.jpg`;
-
 export interface OwnedGame {
   appid: number;
   name: string;
   /** Минуты, как playtime_forever в Steam. */
   playtime: number;
-  coverUrl: string;
+  /** Последний запуск (ISO) или null, если игру не запускали. Steam: rtime_last_played. */
+  lastPlayedAt: string | null;
 }
 
 export type OwnedGamesResult =
@@ -40,7 +37,7 @@ export const parseOwnedGames = (body: unknown): OwnedGamesResult => {
   const seen = new Set<number>();
   for (const raw of rawGames) {
     if (!isRecord(raw)) continue;
-    const { appid, name, playtime_forever: playtime } = raw;
+    const { appid, name, playtime_forever: playtime, rtime_last_played: lastPlayed } = raw;
     if (typeof appid !== 'number' || !Number.isSafeInteger(appid) || appid <= 0) continue;
     if (seen.has(appid)) continue;
     seen.add(appid);
@@ -50,7 +47,10 @@ export const parseOwnedGames = (body: unknown): OwnedGamesResult => {
       // Без include_appinfo или у удалённых из магазина игр имени может не быть.
       name: trimmed.length > 0 ? trimmed : `App ${appid}`,
       playtime: typeof playtime === 'number' && playtime > 0 ? Math.floor(playtime) : 0,
-      coverUrl: steamCoverUrl(appid),
+      lastPlayedAt:
+        typeof lastPlayed === 'number' && Number.isSafeInteger(lastPlayed) && lastPlayed > 0
+          ? new Date(lastPlayed * 1000).toISOString()
+          : null,
     });
   }
   return { kind: 'ok', games };

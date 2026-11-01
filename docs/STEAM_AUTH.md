@@ -95,3 +95,10 @@ Steam не отдаёт жанры, поэтому после каждого и�
 запросов останавливают партию (`503 rawg_unavailable`), а список игр при этом продолжает работать.
 
 Деплой: `npx supabase functions deploy rawg-enrich --no-verify-jwt`, секрет `RAWG_API_KEY`.
+
+### Обложки и дата последнего запуска (правки этапа 7)
+
+- `steam-library` больше не пишет `cover_url`: шаблон `cdn.cloudflare.steamstatic.com/steam/apps/<appid>/header.jpg`
+  у новых игр отдаёт 404. Обложку находит `rawg-enrich`: HEAD к шаблону, при ошибке `header_image` из
+  `store.steampowered.com/api/appdetails` (только домены `*.steamstatic.com`), затем обложка RAWG.
+- `steam-library` сохраняет `rtime_last_played` в `games.last_played_at` для сортировки «Недавно запускал».

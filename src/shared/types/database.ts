@@ -32,6 +32,8 @@ export interface Database {
           playtime: number;
           created_at: string;
           updated_at: string;
+          /** Последний запуск в Steam (rtime_last_played). */
+          last_played_at: string | null;
           /** Когда игру искали в RAWG (пишет только Edge Function rawg-enrich). */
           rawg_checked_at: string | null;
         };
