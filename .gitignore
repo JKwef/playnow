@@ -39,3 +39,11 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# env (ТЗ TR4: ключи не коммитим)
+.env
+.env.*
+!.env.example
+
+# tests
+coverage/
