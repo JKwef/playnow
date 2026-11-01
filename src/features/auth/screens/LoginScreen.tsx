@@ -3,11 +3,13 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/shared/components/Button';
 import { Screen } from '@/shared/components/Screen';
 import { colors, fontSize, spacing } from '@/shared/constants';
-import { useAuth } from '@/shared/hooks/useAuth';
+import { selectIsBusy, useAuth } from '@/shared/hooks/useAuth';
 
 /** Экран приветствия (UI2). Вход через Steam OpenID появится на этапе 4. */
 export function LoginScreen() {
   const signIn = useAuth((state) => state.signIn);
+  const isBusy = useAuth(selectIsBusy);
+  const error = useAuth((state) => state.error);
 
   return (
     <Screen withTopInset centered>
@@ -20,9 +22,14 @@ export function LoginScreen() {
       <Button
         label="Войти через Steam"
         accessibilityHint="Откроет страницу входа Steam"
-        // ЗАГЛУШКА ЭТАПА 2: фиктивный steamId, чтобы проверить переключение стеков.
-        onPress={() => signIn('dev-steam-id')}
+        disabled={isBusy}
+        onPress={() => void signIn()}
       />
+      {error !== null && (
+        <Text accessibilityRole="alert" style={styles.error}>
+          {error}
+        </Text>
+      )}
     </Screen>
   );
 }
@@ -30,5 +37,6 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   hero: { alignItems: 'center', marginBottom: spacing.lg },
   title: { color: colors.textPrimary, fontSize: fontSize.display, fontWeight: '700' },
+  error: { color: colors.error, fontSize: fontSize.body, textAlign: 'center' },
   subtitle: { color: colors.textSecondary, fontSize: fontSize.body, marginTop: spacing.xs },
 });

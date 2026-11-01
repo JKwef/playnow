@@ -1,4 +1,5 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useEffect } from 'react';
 
 import { BacklogScreen } from '@/features/backlog/screens/BacklogScreen';
 import { BacklogLoadingScreen } from '@/features/backlog/screens/BacklogLoadingScreen';
@@ -30,6 +31,12 @@ declare module '@react-navigation/core' {
  */
 export function RootNavigator() {
   const status = useAuth((state) => state.status);
+  const restoreSession = useAuth((state) => state.restoreSession);
+
+  // Один раз при старте пытаемся поднять сохранённую сессию (FR1.3).
+  useEffect(() => {
+    void restoreSession();
+  }, [restoreSession]);
 
   // Пока не знаем, есть ли сохранённая сессия (этап 4: чтение SecureStore), не мигаем экраном входа.
   if (status === 'unknown') {
@@ -45,7 +52,7 @@ export function RootNavigator() {
         headerBackButtonDisplayMode: 'minimal',
       }}
     >
-      {status === 'signedOut' ? (
+      {status !== 'signedIn' ? (
         <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
       ) : (
         <Stack.Group>

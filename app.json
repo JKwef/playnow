@@ -15,13 +15,13 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.playnow.app",
+      "bundleIdentifier": "com.jkwef.playnow",
       "infoPlist": {
         "LSApplicationQueriesSchemes": ["steam"]
       }
     },
     "android": {
-      "package": "com.playnow.app",
+      "package": "com.jkwef.playnow",
       "adaptiveIcon": {
         "backgroundColor": "#121212",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

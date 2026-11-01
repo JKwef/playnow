@@ -11,7 +11,7 @@ export function SettingsScreen() {
     <Screen>
       <Placeholder title="Настройки" stage={10} />
       {/* После signOut навигатор сам переключится на экран входа, navigate() не нужен. */}
-      <Button label="Выйти из аккаунта" variant="tertiary" onPress={signOut} />
+      <Button label="Выйти из аккаунта" variant="tertiary" onPress={() => void signOut()} />
     </Screen>
   );
 }
