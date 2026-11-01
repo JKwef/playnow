@@ -13,52 +13,29 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { readApiKey, requireEnv } from '../_shared/apiKeys.ts';
+import { getRequestUser } from '../_shared/auth.ts';
+import { json, UPSTREAM_TIMEOUT_MS } from '../_shared/http.ts';
 import { buildOwnedGamesUrl, parseOwnedGames } from './steam.ts';
 
 const SUPABASE_URL = requireEnv('SUPABASE_URL');
 const SERVICE_ROLE_KEY = readApiKey('SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SECRET_KEYS');
 const ANON_KEY = readApiKey('SUPABASE_ANON_KEY', 'SUPABASE_PUBLISHABLE_KEYS');
 const STEAM_API_KEY = requireEnv('STEAM_API_KEY');
-const STEAM_ID_RE = /^\d{17}$/;
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-const json = (status: number, body: Record<string, unknown>): Response =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-
-/**
- * Пользователь из JWT. auth.getUser проверяет токен на сервере Auth: подпись, срок,
- * не удалён ли пользователь. Поэтому функция деплоится с verify_jwt = false.
- */
-const getUser = async (req: Request) => {
-  const token = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
-  if (!token) return null;
-  const client = createClient(SUPABASE_URL, ANON_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data, error } = await client.auth.getUser(token);
-  if (error || !data.user) return null;
-  const steamId: unknown = data.user.app_metadata.steam_id;
-  return typeof steamId === 'string' && STEAM_ID_RE.test(steamId)
-    ? { id: data.user.id, steamId }
-    : null;
-};
-
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
 
-  const user = await getUser(req);
+  const user = await getRequestUser(req, SUPABASE_URL, ANON_KEY);
   if (!user) return json(401, { error: 'unauthorized' });
 
   let body: unknown;
   try {
     const response = await fetch(buildOwnedGamesUrl(STEAM_API_KEY, user.steamId), {
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
     if (response.status === 401 || response.status === 403) {
       // Steam отвечает так при невалидном ключе. Это проблема конфигурации, не пользователя.

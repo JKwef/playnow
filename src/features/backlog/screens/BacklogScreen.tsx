@@ -10,11 +10,20 @@ import { formatDateTime, formatPlaytime } from '@/shared/utils/format';
 import { useBacklog } from '../hooks/useBacklog';
 
 /**
- * Список игр. ВРЕМЕННАЯ версия этапа 5: простая строка на игру и «Обновить» (FR2.5).
+ * Список игр. ВРЕМЕННАЯ версия этапов 5–6: строка на игру (с жанрами из RAWG) и «Обновить» (FR2.5).
  * Карточки с обложками, поиск, фильтры и сортировка будут на этапе 7.
  */
 export function BacklogScreen({ navigation }: RootStackScreenProps<'Backlog'>) {
-  const { games, updatedAt, isFromCache, isRefreshing, errorMessage, refresh } = useBacklog();
+  const {
+    games,
+    updatedAt,
+    isFromCache,
+    isRefreshing,
+    errorMessage,
+    genresStatus,
+    genresRemaining,
+    refresh,
+  } = useBacklog();
 
   if (games === undefined) {
     return <LoadingIndicator fullScreen label="Загружаем игры" />;
@@ -26,6 +35,19 @@ export function BacklogScreen({ navigation }: RootStackScreenProps<'Backlog'>) {
         <Text style={styles.meta}>
           {games.length} игр{updatedAt ? ` · обновлено ${formatDateTime(updatedAt)}` : ''}
         </Text>
+        {genresStatus === 'loading' && (
+          <Text style={styles.meta} accessibilityLiveRegion="polite">
+            Определяем жанры
+            {genresRemaining !== null && genresRemaining > 0
+              ? `: осталось ${genresRemaining}`
+              : '…'}
+          </Text>
+        )}
+        {genresStatus === 'error' && (
+          <Text style={styles.meta}>
+            Жанры загрузились не для всех игр. Догрузим при следующем обновлении
+          </Text>
+        )}
         {errorMessage !== null && (
           <Text accessibilityRole="alert" style={styles.error}>
             {errorMessage}
@@ -45,7 +67,9 @@ export function BacklogScreen({ navigation }: RootStackScreenProps<'Backlog'>) {
         keyExtractor={(game) => String(game.appid)}
         renderItem={({ item }) => (
           <Button
-            label={`${item.name} · ${formatPlaytime(item.playtimeMinutes)}`}
+            label={`${item.name} · ${formatPlaytime(item.playtimeMinutes)}${
+              item.genres.length > 0 ? ` · ${item.genres.join(', ')}` : ''
+            }`}
             variant="tertiary"
             onPress={() => navigation.navigate('GameDetails', { appid: item.appid })}
           />

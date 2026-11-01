@@ -2,15 +2,18 @@ import { getEnv } from '@/shared/config/env';
 import { fetchWithTimeout } from '@/shared/services/http';
 import { getSupabase } from '@/shared/services/supabase';
 
+import type { FunctionsClientDeps } from './functionsClient';
+import { createRawgEnrichmentService, type RawgEnrichmentService } from './rawgApi';
 import { createSteamLibraryService, type SteamLibraryService } from './steamApi';
 
-let service: SteamLibraryService | null = null;
+let functionsDeps: FunctionsClientDeps | null = null;
+let library: SteamLibraryService | null = null;
+let enrichment: RawgEnrichmentService | null = null;
 
-/** Боевой сервис импорта (ленивый синглтон). */
-export const getSteamLibrary = (): SteamLibraryService => {
-  if (service === null) {
+const getFunctionsDeps = (): FunctionsClientDeps => {
+  if (functionsDeps === null) {
     const env = getEnv();
-    service = createSteamLibraryService({
+    functionsDeps = {
       functionsBaseUrl: `${env.supabaseUrl.replace(/\/+$/, '')}/functions/v1`,
       apiKey: env.supabaseAnonKey,
       // getSession сам обновит протухший access token по refresh token.
@@ -19,7 +22,19 @@ export const getSteamLibrary = (): SteamLibraryService => {
         return data.session?.access_token ?? null;
       },
       fetch: fetchWithTimeout,
-    });
+    };
   }
-  return service;
+  return functionsDeps;
+};
+
+/** Боевой сервис импорта (ленивый синглтон). */
+export const getSteamLibrary = (): SteamLibraryService => {
+  library ??= createSteamLibraryService(getFunctionsDeps());
+  return library;
+};
+
+/** Боевой сервис жанров из RAWG (ленивый синглтон). */
+export const getRawgEnrichment = (): RawgEnrichmentService => {
+  enrichment ??= createRawgEnrichmentService(getFunctionsDeps());
+  return enrichment;
 };

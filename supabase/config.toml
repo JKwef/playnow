@@ -9,3 +9,7 @@ verify_jwt = false
 # JWT проверяет сама функция через auth.getUser: проверка на gateway несовместима
 # с новыми асимметричными ключами подписи JWT в Supabase.
 verify_jwt = false
+
+[functions.rawg-enrich]
+# Как steam-library: JWT проверяется внутри функции через auth.getUser.
+verify_jwt = false
