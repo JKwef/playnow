@@ -64,3 +64,15 @@ curl -i "https://<ref>.supabase.co/functions/v1/steam-auth/start?challenge=$(pri
 ```bash
 deno test supabase/functions/steam-auth/
 ```
+
+## Импорт библиотеки (steam-library)
+
+`POST /functions/v1/steam-library` с `Authorization: Bearer <access_token>`.
+Функция сама проверяет токен через `auth.getUser`, берёт SteamID из `app_metadata`
+(не из запроса) и вызывает `GetOwnedGames` с `STEAM_API_KEY` из секретов.
+Результат сохраняется в `games` (upsert по `user_id, appid`, жанры не затираются) и возвращается клиенту.
+Приватный профиль → `403 {"error":"private_profile"}`.
+
+```bash
+npx supabase functions deploy steam-library --no-verify-jwt
+```

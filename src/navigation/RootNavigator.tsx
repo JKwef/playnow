@@ -55,13 +55,14 @@ export function RootNavigator() {
       {status !== 'signedIn' ? (
         <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
       ) : (
+        // Первый экран после входа — загрузка бэклога: он сам перейдёт на Picker.
         <Stack.Group>
-          <Stack.Screen name="Picker" component={PickerScreen} options={{ title: 'PlayNow' }} />
           <Stack.Screen
             name="BacklogLoading"
             component={BacklogLoadingScreen}
             options={{ headerShown: false, gestureEnabled: false }}
           />
+          <Stack.Screen name="Picker" component={PickerScreen} options={{ title: 'PlayNow' }} />
           <Stack.Screen name="Result" component={ResultScreen} options={{ title: 'Ваша игра' }} />
           <Stack.Screen name="Backlog" component={BacklogScreen} options={{ title: 'Мои игры' }} />
           <Stack.Screen

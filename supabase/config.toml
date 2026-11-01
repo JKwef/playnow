@@ -4,3 +4,8 @@ project_id = "playnow"
 [functions.steam-auth]
 # Вызывается браузером и редиректом из Steam, у которых нет JWT Supabase.
 verify_jwt = false
+
+[functions.steam-library]
+# JWT проверяет сама функция через auth.getUser: проверка на gateway несовместима
+# с новыми асимметричными ключами подписи JWT в Supabase.
+verify_jwt = false

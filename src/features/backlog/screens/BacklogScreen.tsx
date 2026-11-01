@@ -1,18 +1,63 @@
-import { Button } from '@/shared/components/Button';
-import { Placeholder } from '@/shared/components/Placeholder';
-import { Screen } from '@/shared/components/Screen';
-import type { RootStackScreenProps } from '@/navigation/types';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-/** Список игр (FR3). FlatList, поиск и фильтры на этапе 7. */
+import type { RootStackScreenProps } from '@/navigation/types';
+import { Button } from '@/shared/components/Button';
+import { LoadingIndicator } from '@/shared/components/LoadingIndicator';
+import { colors, fontSize, spacing } from '@/shared/constants';
+import { formatDateTime, formatPlaytime } from '@/shared/utils/format';
+
+import { useBacklog } from '../hooks/useBacklog';
+
+/**
+ * Список игр. ВРЕМЕННАЯ версия этапа 5: простая строка на игру и «Обновить» (FR2.5).
+ * Карточки с обложками, поиск, фильтры и сортировка будут на этапе 7.
+ */
 export function BacklogScreen({ navigation }: RootStackScreenProps<'Backlog'>) {
+  const { games, updatedAt, isFromCache, isRefreshing, errorMessage, refresh } = useBacklog();
+
+  if (games === undefined) {
+    return <LoadingIndicator fullScreen label="Загружаем игры" />;
+  }
+
   return (
-    <Screen>
-      <Placeholder title="Мои игры" stage={7} />
-      <Button
-        label="Открыть игру (пример)"
-        variant="secondary"
-        onPress={() => navigation.navigate('GameDetails', { appid: 730 })}
+    <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
+      <View style={styles.header}>
+        <Text style={styles.meta}>
+          {games.length} игр{updatedAt ? ` · обновлено ${formatDateTime(updatedAt)}` : ''}
+        </Text>
+        {errorMessage !== null && (
+          <Text accessibilityRole="alert" style={styles.error}>
+            {errorMessage}
+            {isFromCache ? '. Показан сохранённый список' : ''}
+          </Text>
+        )}
+        <Button
+          label={isRefreshing ? 'Обновляем…' : 'Обновить'}
+          variant="secondary"
+          disabled={isRefreshing}
+          accessibilityHint="Заново загрузит список игр из Steam"
+          onPress={() => void refresh()}
+        />
+      </View>
+      <FlatList
+        data={games}
+        keyExtractor={(game) => String(game.appid)}
+        renderItem={({ item }) => (
+          <Button
+            label={`${item.name} · ${formatPlaytime(item.playtimeMinutes)}`}
+            variant="tertiary"
+            onPress={() => navigation.navigate('GameDetails', { appid: item.appid })}
+          />
+        )}
       />
-    </Screen>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
+  header: { padding: spacing.sm, gap: spacing.xs },
+  meta: { color: colors.textSecondary, fontSize: fontSize.body },
+  error: { color: colors.error, fontSize: fontSize.body },
+});
