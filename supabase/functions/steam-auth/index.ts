@@ -30,10 +30,34 @@ const requireEnv = (name: string): string => {
   return value;
 };
 
+/**
+ * Ключ API проекта. Supabase прокидывает в функции и старые ключи (SUPABASE_SERVICE_ROLE_KEY,
+ * SUPABASE_ANON_KEY), и новые (SUPABASE_SECRET_KEYS / SUPABASE_PUBLISHABLE_KEYS — JSON
+ * вида {"default": "sb_..."}). Новые проекты могут работать без старых, поэтому читаем оба.
+ */
+const readApiKey = (legacyName: string, jsonName: string): string => {
+  const legacy = Deno.env.get(legacyName);
+  if (legacy) return legacy;
+  const raw = Deno.env.get(jsonName);
+  if (raw) {
+    try {
+      const keys: unknown = JSON.parse(raw);
+      if (typeof keys === 'object' && keys !== null) {
+        const record = keys as Record<string, unknown>;
+        const value = record.default ?? Object.values(record)[0];
+        if (typeof value === 'string' && value.length > 0) return value;
+      }
+    } catch (error) {
+      console.error(`Не удалось разобрать ${jsonName}`, String(error));
+    }
+  }
+  throw new Error(`Не задан ни ${legacyName}, ни ${jsonName}`);
+};
+
 // SUPABASE_* Supabase прокидывает в функции автоматически.
 const SUPABASE_URL = requireEnv('SUPABASE_URL');
-const SERVICE_ROLE_KEY = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
-const ANON_KEY = requireEnv('SUPABASE_ANON_KEY');
+const SERVICE_ROLE_KEY = readApiKey('SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SECRET_KEYS');
+const ANON_KEY = readApiKey('SUPABASE_ANON_KEY', 'SUPABASE_PUBLISHABLE_KEYS');
 /** Ключ подписи кодов. Отдельный секрет можно задать, но по умолчанию выводится из service role. */
 const CODE_SIGNING_KEY = Deno.env.get('STEAM_AUTH_CODE_SECRET') ?? `steam-auth:${SERVICE_ROLE_KEY}`;
 /** Куда разрешено возвращать пользователя. exp:// нужен для разработки в Expo Go. */
