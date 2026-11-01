@@ -10,7 +10,7 @@ import { ResultScreen } from '@/features/picker/screens/ResultScreen';
 import { SettingsScreen } from '@/features/settings/screens/SettingsScreen';
 import { LoadingIndicator } from '@/shared/components/LoadingIndicator';
 import { colors } from '@/shared/constants';
-import { useAuth } from '@/shared/hooks/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 import type { RootStackParamList } from './types';
 

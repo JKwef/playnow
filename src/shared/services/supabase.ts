@@ -4,30 +4,10 @@ import { AppState, Platform, type AppStateStatus } from 'react-native';
 import { getEnv, type AppEnv } from '@/shared/config/env';
 import type { Database } from '@/shared/types/database';
 
+import { fetchWithTimeout } from './http';
 import { createChunkedSecureStorage, type KeyValueStorage } from './secureStorage';
 
 export type AppSupabaseClient = SupabaseClient<Database>;
-
-/** Таймаут сетевых запросов (SEC2). */
-export const REQUEST_TIMEOUT_MS = 10_000;
-
-/**
- * fetch с таймаутом: supabase-js по умолчанию ждёт ответа бесконечно.
- * Если вызывающий код передал свой signal, уважаем и его.
- */
-export const fetchWithTimeout: typeof fetch = (input, init) => {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  const outerSignal = init?.signal;
-  if (outerSignal) {
-    if (outerSignal.aborted) {
-      controller.abort();
-    } else {
-      outerSignal.addEventListener('abort', () => controller.abort(), { once: true });
-    }
-  }
-  return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
-};
 
 export interface SupabaseClientDeps {
   env: AppEnv;

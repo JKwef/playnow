@@ -16,6 +16,9 @@ const parseAppId = (value: string): number => {
  */
 export const linking: LinkingOptions<RootStackParamList> = {
   prefixes: [Linking.createURL('/'), 'playnow://'],
+  // Редирект после входа в Steam (playnow://auth?code=…) забирает openAuthSessionAsync.
+  // На Android он может прийти и в обычный Linking: навигации он не касается.
+  filter: (url) => !/(?:\/\/|\/--\/)auth(?:[?#]|$)/.test(url),
   config: {
     screens: {
       Login: 'login',

@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/shared/components/Button';
 import { Screen } from '@/shared/components/Screen';
 import { colors, fontSize, spacing } from '@/shared/constants';
-import { selectIsBusy, useAuth } from '@/shared/hooks/useAuth';
+import { selectIsBusy, useAuth } from '@/features/auth/hooks/useAuth';
 
 /** Экран приветствия (UI2). Вход через Steam OpenID появится на этапе 4. */
 export function LoginScreen() {

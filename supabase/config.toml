@@ -1,0 +1,6 @@
+# Минимальный конфиг Supabase CLI. Остальные параметры берутся по умолчанию.
+project_id = "playnow"
+
+[functions.steam-auth]
+# Вызывается браузером и редиректом из Steam, у которых нет JWT Supabase.
+verify_jwt = false
