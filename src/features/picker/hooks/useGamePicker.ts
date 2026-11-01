@@ -1,23 +1,13 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 
-import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useBacklog } from '@/features/backlog/hooks/useBacklog';
 import type { Game } from '@/features/backlog/types/Game';
 import { newSeed, seededRandom } from '@/shared/utils/random';
 
-import {
-  createBlacklistService,
-  type Blacklist,
-  type BlacklistService,
-} from '../services/blacklist';
+import type { BlacklistService } from '../services/blacklist';
 import type { PickerContext } from '../types';
 import { pickGame } from '../utils/pickGame';
-
-const defaultBlacklist = createBlacklistService();
-const EMPTY_BLACKLIST: Blacklist = new Map();
-
-export const blacklistKey = (steamId: string) => ['picker', 'blacklist', steamId] as const;
+import { useBlacklist } from './useBlacklist';
 
 export type PickerStatus =
   /** Ещё нет бэклога или чёрного списка. */
@@ -47,22 +37,14 @@ export interface UseGamePickerResult {
  */
 export const useGamePicker = (
   context: PickerContext,
-  blacklistService: BlacklistService = defaultBlacklist,
+  blacklistService?: BlacklistService,
 ): UseGamePickerResult => {
-  const steamId = useAuth((state) => state.user?.steamId ?? null);
   const { games } = useBacklog();
-  const queryClient = useQueryClient();
+  const blacklist = useBlacklist(blacklistService);
+  const postponed = blacklist.postponed;
   const [seed, setSeed] = useState(newSeed);
   /** Показанные в этой серии игры: «Другой вариант» не возвращается к ним. */
   const [shown, setShown] = useState<readonly number[]>([]);
-
-  const blacklist = useQuery({
-    queryKey: blacklistKey(steamId ?? ''),
-    queryFn: () => blacklistService.read(steamId ?? ''),
-    enabled: steamId !== null,
-    staleTime: Infinity,
-  });
-  const postponed = blacklist.data ?? EMPTY_BLACKLIST;
 
   const pickWith = useCallback(
     (exclude: readonly number[], pickSeed: number): Game | null =>
@@ -91,21 +73,21 @@ export const useGamePicker = (
     setSeed(nextSeed);
   }, [game, hasOther, shown, pickWith]);
 
+  const { postpone: addToBlacklist } = blacklist;
   const postpone = useCallback(async () => {
-    if (game === null || steamId === null) return;
+    if (game === null) return;
     try {
-      const updated = await blacklistService.add(steamId, game.appid);
-      queryClient.setQueryData(blacklistKey(steamId), updated);
+      await addToBlacklist(game.appid);
     } catch (error) {
       // Не смогли записать — хотя бы уберём игру из текущей серии.
       console.warn('blacklist write failed', error);
       setShown((current) => [...current, game.appid]);
     }
     setSeed(newSeed());
-  }, [game, steamId, blacklistService, queryClient]);
+  }, [game, addToBlacklist]);
 
   let status: PickerStatus = 'ready';
-  if (games === undefined || blacklist.isPending) status = 'loading';
+  if (games === undefined || blacklist.isLoading) status = 'loading';
   else if (game === null) status = 'empty';
 
   return {

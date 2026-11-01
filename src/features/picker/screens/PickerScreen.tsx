@@ -8,6 +8,7 @@ import { Screen } from '@/shared/components/Screen';
 import { colors, fontSize, spacing } from '@/shared/constants';
 
 import { ContextCard } from '../components/ContextCard';
+import { useBlacklist } from '../hooks/useBlacklist';
 import type { ContextId } from '../types';
 import { PICKER_CONTEXTS } from '../utils/contexts';
 import { matchesContext } from '../utils/pickGame';
@@ -15,6 +16,7 @@ import { matchesContext } from '../utils/pickGame';
 /** Главный экран Solo Mode (FR4.1, UI2): четыре карточки контекста сеткой 2×2. */
 export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
   const { games, genresStatus } = useBacklog();
+  const { postponed } = useBlacklist();
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -83,6 +85,14 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
           )}
         </View>
       ))}
+      {postponed.size > 0 && (
+        <Button
+          label={`Отложенные игры: ${postponed.size}`}
+          variant="tertiary"
+          accessibilityHint="Откроет список отложенных игр, их можно вернуть в подбор"
+          onPress={() => navigation.navigate('Postponed')}
+        />
+      )}
       {games !== undefined && games.length === 0 && (
         <Button label="Добавить игру вручную" onPress={() => navigation.navigate('AddGame')} />
       )}

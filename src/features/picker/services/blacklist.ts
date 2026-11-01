@@ -15,6 +15,8 @@ export interface BlacklistService {
   read: (steamId: string) => Promise<Blacklist>;
   /** Откладывает игру на POSTPONE_DAYS дней. */
   add: (steamId: string, appid: number) => Promise<Blacklist>;
+  /** Возвращает игру в подбор раньше срока. */
+  remove: (steamId: string, appid: number) => Promise<Blacklist>;
   clear: (steamId: string) => Promise<void>;
 }
 
@@ -70,6 +72,12 @@ export const createBlacklistService = (
     add: async (steamId, appid) => {
       const entries = await load(steamId);
       entries.set(appid, now() + POSTPONE_DAYS * DAY_MS);
+      await save(steamId, entries);
+      return entries;
+    },
+    remove: async (steamId, appid) => {
+      const entries = await load(steamId);
+      entries.delete(appid);
       await save(steamId, entries);
       return entries;
     },

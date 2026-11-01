@@ -29,6 +29,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
         parse: { appid: parseAppId },
       },
       AddGame: 'games/new',
+      Postponed: 'postponed',
       Result: 'result/:contextId',
       Settings: 'settings',
     },

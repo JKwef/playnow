@@ -1,6 +1,8 @@
 import { StyleSheet, Text } from 'react-native';
 
 import { genreLabel } from '@/features/backlog/utils/genres';
+import { isManualAppId } from '@/features/backlog/utils/manualGame';
+import { useLaunchGame } from '@/features/launch/hooks/useLaunchGame';
 import type { RootStackScreenProps } from '@/navigation/types';
 import { Button } from '@/shared/components/Button';
 import { LoadingIndicator } from '@/shared/components/LoadingIndicator';
@@ -25,11 +27,24 @@ export function ResultScreen({ route, navigation }: RootStackScreenProps<'Result
       </Screen>
     );
   }
-  return <PickedGame context={context} onBack={() => navigation.goBack()} />;
+  return (
+    <PickedGame
+      context={context}
+      onBack={() => navigation.goBack()}
+      onOpenPostponed={() => navigation.navigate('Postponed')}
+    />
+  );
 }
 
-function PickedGame({ context, onBack }: { context: PickerContext; onBack: () => void }) {
+interface PickedGameProps {
+  context: PickerContext;
+  onBack: () => void;
+  onOpenPostponed: () => void;
+}
+
+function PickedGame({ context, onBack, onOpenPostponed }: PickedGameProps) {
   const { status, game, postponedCount, next, postpone, isLastOption } = useGamePicker(context);
+  const { launch, isLaunching } = useLaunchGame();
 
   if (status === 'loading') {
     return <LoadingIndicator fullScreen label="Подбираем игру" />;
@@ -49,6 +64,9 @@ function PickedGame({ context, onBack }: { context: PickerContext; onBack: () =>
           .{postponedCount > 0 ? ` Отложено игр: ${postponedCount}.` : ''}
         </Text>
         <Button label="Выбрать другой контекст" onPress={onBack} />
+        {postponedCount > 0 && (
+          <Button label="Отложенные игры" variant="tertiary" onPress={onOpenPostponed} />
+        )}
       </Screen>
     );
   }
@@ -59,8 +77,12 @@ function PickedGame({ context, onBack }: { context: PickerContext; onBack: () =>
         {context.icon} {context.title}
       </Text>
       <GameResult game={game} />
-      {/* Запуск steam://run/<appid> и ошибку «Steam не установлен» подключим на этапе 9. */}
-      <Button label="Играть" accessibilityHint="Запустит игру в Steam" disabled />
+      <Button
+        label={isLaunching ? 'Открываем Steam…' : 'Играть'}
+        accessibilityHint="Запустит игру в Steam"
+        disabled={isLaunching}
+        onPress={() => void launch(game.appid)}
+      />
       <Button
         label="Другой вариант"
         variant="secondary"
@@ -74,10 +96,10 @@ function PickedGame({ context, onBack }: { context: PickerContext; onBack: () =>
         accessibilityHint={`Не предлагать эту игру ${POSTPONE_DAYS} дней`}
         onPress={() => void postpone()}
       />
-      <Text style={styles.note}>
-        {isLastOption ? 'Это единственная подходящая игра. ' : ''}
-        Запуск через Steam появится на этапе 9.
-      </Text>
+      {isLastOption && <Text style={styles.note}>Это единственная подходящая игра</Text>}
+      {isManualAppId(game.appid) && (
+        <Text style={styles.note}>Игра добавлена вручную: запуск через Steam недоступен</Text>
+      )}
     </Screen>
   );
 }

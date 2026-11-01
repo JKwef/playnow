@@ -7,6 +7,7 @@ import { BacklogLoadingScreen } from '@/features/backlog/screens/BacklogLoadingS
 import { GameDetailsScreen } from '@/features/backlog/screens/GameDetailsScreen';
 import { LoginScreen } from '@/features/auth/screens/LoginScreen';
 import { PickerScreen } from '@/features/picker/screens/PickerScreen';
+import { PostponedScreen } from '@/features/picker/screens/PostponedScreen';
 import { ResultScreen } from '@/features/picker/screens/ResultScreen';
 import { SettingsScreen } from '@/features/settings/screens/SettingsScreen';
 import { LoadingIndicator } from '@/shared/components/LoadingIndicator';
@@ -75,6 +76,11 @@ export function RootNavigator() {
             name="AddGame"
             component={AddGameScreen}
             options={{ title: 'Новая игра' }}
+          />
+          <Stack.Screen
+            name="Postponed"
+            component={PostponedScreen}
+            options={{ title: 'Отложенные' }}
           />
           <Stack.Screen
             name="Settings"

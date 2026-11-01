@@ -1,6 +1,9 @@
 import { useLayoutEffect } from 'react';
 import { StyleSheet, Text } from 'react-native';
 
+import { useLaunchGame } from '@/features/launch/hooks/useLaunchGame';
+import { useBlacklist } from '@/features/picker/hooks/useBlacklist';
+import { formatPostponedUntil } from '@/features/picker/utils/postponed';
 import type { RootStackScreenProps } from '@/navigation/types';
 import { Button } from '@/shared/components/Button';
 import { LoadingIndicator } from '@/shared/components/LoadingIndicator';
@@ -17,6 +20,8 @@ import { isManualAppId } from '../utils/manualGame';
 export function GameDetailsScreen({ route, navigation }: RootStackScreenProps<'GameDetails'>) {
   const { games, status } = useBacklog();
   const game = games?.find((item) => item.appid === route.params.appid);
+  const { launch, isLaunching } = useLaunchGame();
+  const { postponed, restore } = useBlacklist();
 
   useLayoutEffect(() => {
     if (game) navigation.setOptions({ title: game.name });
@@ -35,6 +40,7 @@ export function GameDetailsScreen({ route, navigation }: RootStackScreenProps<'G
   }
 
   const manual = isManualAppId(game.appid);
+  const postponedUntil = postponed.get(game.appid);
 
   return (
     <Screen>
@@ -47,13 +53,27 @@ export function GameDetailsScreen({ route, navigation }: RootStackScreenProps<'G
         <Text style={styles.secondary}>Последний запуск: {formatDateTime(game.lastPlayedAt)}</Text>
       )}
       <GenreChips genres={game.genres} />
-      {/* Запуск через steam://run/<appid> и обработку «Steam не установлен» подключим на этапе 9. */}
-      <Button label="Играть" accessibilityHint="Запустит игру в Steam" disabled />
-      <Text style={styles.note}>
-        {manual
-          ? 'Игра добавлена вручную без Steam, поэтому запустить её из приложения нельзя.'
-          : 'Запуск через Steam появится на этапе 9.'}
-      </Text>
+      <Button
+        label={isLaunching ? 'Открываем Steam…' : 'Играть'}
+        accessibilityHint="Запустит игру в Steam"
+        disabled={manual || isLaunching}
+        onPress={() => void launch(game.appid)}
+      />
+      {manual && (
+        <Text style={styles.note}>
+          Игра добавлена вручную без Steam, поэтому запустить её из приложения нельзя.
+        </Text>
+      )}
+      {postponedUntil !== undefined && (
+        <>
+          <Text style={styles.note}>{formatPostponedUntil(postponedUntil)}</Text>
+          <Button
+            label="Вернуть в подбор"
+            variant="tertiary"
+            onPress={() => void restore(game.appid)}
+          />
+        </>
+      )}
     </Screen>
   );
 }
