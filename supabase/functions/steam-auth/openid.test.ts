@@ -157,3 +157,14 @@ Deno.test('redeemCode: чужой verifier, истёкший код, подде�
   await assertRejects(() => redeemCode(code, 'short', KEY, NOW), SteamAuthError);
   await assertRejects(() => redeemCode(42, verifier, KEY, NOW), SteamAuthError);
 });
+
+Deno.test('isAllowedRedirect: локальная веб-версия, но не чужой хост', () => {
+  const prefixes = ['playnow://', 'exp://'];
+  assertEquals(isAllowedRedirect('http://localhost:8081/auth', prefixes), true);
+  assertEquals(isAllowedRedirect('http://127.0.0.1:19006/auth', prefixes), true);
+  assertEquals(isAllowedRedirect('http://localhost:1@evil.com/auth', prefixes), false);
+  assertEquals(isAllowedRedirect('http://localhost.evil.com/auth', prefixes), false);
+  assertEquals(isAllowedRedirect('https://localhost:8081/auth', prefixes), false);
+  assertEquals(isAllowedRedirect('http://localhost:8081/other', prefixes), false);
+  assertEquals(isAllowedRedirect('http://evil.com/auth', prefixes), false);
+});

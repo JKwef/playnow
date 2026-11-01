@@ -5,7 +5,11 @@ import { getEnv, type AppEnv } from '@/shared/config/env';
 import type { Database } from '@/shared/types/database';
 
 import { fetchWithTimeout } from './http';
-import { createChunkedSecureStorage, type KeyValueStorage } from './secureStorage';
+import {
+  createChunkedSecureStorage,
+  createWebStorage,
+  type KeyValueStorage,
+} from './secureStorage';
 
 export type AppSupabaseClient = SupabaseClient<Database>;
 
@@ -40,7 +44,10 @@ let client: AppSupabaseClient | null = null;
  */
 export const getSupabase = (): AppSupabaseClient => {
   if (client === null) {
-    client = createSupabaseClient({ env: getEnv(), storage: createChunkedSecureStorage() });
+    // В браузере SecureStore нет: веб-версия нужна только для проверки на ПК (см. README).
+    const storage =
+      Platform.OS === 'web' ? createWebStorage(window.localStorage) : createChunkedSecureStorage();
+    client = createSupabaseClient({ env: getEnv(), storage });
   }
   return client;
 };

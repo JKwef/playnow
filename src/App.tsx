@@ -1,6 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
+import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -8,6 +9,11 @@ import { linking } from '@/navigation/linking';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { navigationTheme } from '@/navigation/theme';
 import { LoadingIndicator } from '@/shared/components/LoadingIndicator';
+
+// Веб-версия (проверка на ПК): вход через Steam идёт во всплывающем окне, которое
+// возвращается на /auth. Этот вызов передаёт результат открывшему окну и закрывает
+// всплывающее. На iOS/Android ничего не делает.
+WebBrowser.maybeCompleteAuthSession();
 
 /**
  * Корень приложения: провайдеры в порядке «снаружи внутрь».

@@ -86,3 +86,27 @@ export const createChunkedSecureStorage = (
     removeItem,
   };
 };
+
+/** Минимум от window.localStorage (в тестах подменяется). */
+export interface WebStorageLike {
+  getItem: (key: string) => string | null;
+  setItem: (key: string, value: string) => void;
+  removeItem: (key: string) => void;
+}
+
+/**
+ * Хранилище сессии для веб-версии (только для проверки на ПК). SecureStore в браузере нет,
+ * поэтому сессия лежит в localStorage — так же поступает сам supabase-js в вебе.
+ * В мобильных сборках используется createChunkedSecureStorage (FR1.2).
+ */
+export const createWebStorage = (storage: WebStorageLike): KeyValueStorage => ({
+  getItem: (key) => Promise.resolve(storage.getItem(key)),
+  setItem: (key, value) => {
+    storage.setItem(key, value);
+    return Promise.resolve();
+  },
+  removeItem: (key) => {
+    storage.removeItem(key);
+    return Promise.resolve();
+  },
+});

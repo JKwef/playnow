@@ -24,6 +24,7 @@ import {
   verifySteamAssertion,
 } from './openid.ts';
 import { readApiKey, requireEnv } from '../_shared/apiKeys.ts';
+import { json, preflight } from '../_shared/http.ts';
 
 // SUPABASE_* Supabase прокидывает в функции автоматически.
 const SUPABASE_URL = requireEnv('SUPABASE_URL');
@@ -31,7 +32,7 @@ const SERVICE_ROLE_KEY = readApiKey('SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SECRE
 const ANON_KEY = readApiKey('SUPABASE_ANON_KEY', 'SUPABASE_PUBLISHABLE_KEYS');
 /** Ключ подписи кодов. Отдельный секрет можно задать, но по умолчанию выводится из service role. */
 const CODE_SIGNING_KEY = Deno.env.get('STEAM_AUTH_CODE_SECRET') ?? `steam-auth:${SERVICE_ROLE_KEY}`;
-/** Куда разрешено возвращать пользователя. exp:// нужен для разработки в Expo Go. */
+/** Куда разрешено возвращать пользователя. Плюс http://localhost:<порт>/auth для веб-версии. */
 const ALLOWED_REDIRECT_PREFIXES = (Deno.env.get('ALLOWED_REDIRECT_PREFIXES') ?? 'playnow://,exp://')
   .split(',')
   .map((prefix) => prefix.trim())
@@ -50,12 +51,6 @@ const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 });
 
 const nowSeconds = (): number => Math.floor(Date.now() / 1000);
-
-const json = (status: number, body: Record<string, unknown>): Response =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
 
 const redirectTo = (location: string): Response =>
   new Response(null, { status: 302, headers: { Location: location, 'Cache-Control': 'no-store' } });
@@ -178,6 +173,8 @@ Deno.serve(async (req) => {
 
   if (req.method === 'GET' && route === 'start') return handleStart(url);
   if (req.method === 'GET' && route === 'callback') return handleCallback(url);
+  // Веб-версия вызывает /exchange из браузера: нужен ответ на preflight (CORS).
+  if (req.method === 'OPTIONS' && route === 'exchange') return preflight();
   if (req.method === 'POST' && route === 'exchange') return handleExchange(req);
   return json(404, { error: 'not_found' });
 });

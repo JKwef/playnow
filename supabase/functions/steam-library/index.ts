@@ -14,7 +14,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { readApiKey, requireEnv } from '../_shared/apiKeys.ts';
 import { getRequestUser } from '../_shared/auth.ts';
-import { json, UPSTREAM_TIMEOUT_MS } from '../_shared/http.ts';
+import { json, preflight, UPSTREAM_TIMEOUT_MS } from '../_shared/http.ts';
 import { buildOwnedGamesUrl, parseOwnedGames } from './steam.ts';
 
 const SUPABASE_URL = requireEnv('SUPABASE_URL');
@@ -27,6 +27,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 });
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return preflight();
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
 
   const user = await getRequestUser(req, SUPABASE_URL, ANON_KEY);

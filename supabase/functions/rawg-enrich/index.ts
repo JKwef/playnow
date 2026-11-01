@@ -18,7 +18,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { readApiKey, requireEnv } from '../_shared/apiKeys.ts';
 import { getRequestUser } from '../_shared/auth.ts';
-import { json, UPSTREAM_TIMEOUT_MS } from '../_shared/http.ts';
+import { json, preflight, UPSTREAM_TIMEOUT_MS } from '../_shared/http.ts';
 import { enrichGames, type PendingGame, RawgFatalError } from './enrich.ts';
 import { buildSearchUrl, pickRawgMatch, type RawgMatch } from './rawg.ts';
 import { findSteamCover } from './steamCover.ts';
@@ -59,6 +59,7 @@ const asStrings = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return preflight();
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
 
   const user = await getRequestUser(req, SUPABASE_URL, ANON_KEY);

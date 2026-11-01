@@ -87,7 +87,30 @@ export const isAllowedRedirect = (
   redirect: string | null,
   allowedPrefixes: readonly string[],
 ): redirect is string =>
-  redirect !== null && allowedPrefixes.some((prefix) => redirect.startsWith(prefix));
+  redirect !== null &&
+  (allowedPrefixes.some((prefix) => redirect.startsWith(prefix)) || isLocalWebRedirect(redirect));
+
+/**
+ * Веб-версия для проверки на ПК возвращается на http://localhost:<порт>/auth.
+ * Проверяем разобранный URL, а не префикс: «http://localhost:1@evil.com» начинается
+ * с «http://localhost:», но ведёт на чужой хост. Код к тому же привязан к PKCE.
+ */
+export const isLocalWebRedirect = (redirect: string): boolean => {
+  if (redirect.length > 500) return false;
+  try {
+    const url = new URL(redirect);
+    return (
+      url.protocol === 'http:' &&
+      (url.hostname === 'localhost' || url.hostname === '127.0.0.1') &&
+      url.username === '' &&
+      url.password === '' &&
+      url.pathname === '/auth'
+    );
+  } catch {
+    // Не URL — значит, не локальный веб-редирект.
+    return false;
+  }
+};
 
 // ---------------------------------------------------------------------------
 // Steam OpenID 2.0
