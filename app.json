@@ -35,7 +35,8 @@
     },
     "extra": {
       "supabaseUrl": "https://ywlbltxdagjlhevftkst.supabase.co",
-      "supabaseAnonKey": "sb_publishable_3oYcm8c7zkYW39YrREjPYQ_ci_sdPY0"
+      "supabaseAnonKey": "sb_publishable_3oYcm8c7zkYW39YrREjPYQ_ci_sdPY0",
+      "privacyPolicyUrl": "https://github.com/JKwef/playnow/blob/main/docs/PRIVACY.md"
     }
   }
 }
