@@ -16,6 +16,7 @@
     "expo-secure-store": "~58.0.2",
     "expo-status-bar": "~58.0.4",
     "expo-web-browser": "~58.0.7",
+    "jest-expo": "~58.0.13",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.1",
@@ -25,11 +26,13 @@
     "zustand": "^5.0.16"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.3.0",
     "eslint": "^9.39.5",
     "eslint-config-expo": "~58.0.4",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.7",
+    "jest": "^30.5.2",
     "prettier": "^3.9.10",
     "typescript": "~6.0.3"
   },
@@ -38,12 +41,44 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tests",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "validate": "npm run typecheck && npm run lint && npm run format:check"
+    "validate": "npm run typecheck && npm run lint && npm run format:check && npm test",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "test:functions": "deno test supabase/functions/"
   },
-  "private": true
+  "private": true,
+  "jest": {
+    "preset": "jest-expo",
+    "roots": [
+      "<rootDir>/tests/unit"
+    ],
+    "testMatch": [
+      "**/*.test.ts?(x)"
+    ],
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/src/$1",
+      "^@react-native-async-storage/async-storage$": "@react-native-async-storage/async-storage/jest/async-storage-mock"
+    },
+    "collectCoverageFrom": [
+      "src/features/*/services/**/*.ts",
+      "src/features/*/utils/**/*.ts",
+      "src/features/auth/hooks/useAuth.ts",
+      "src/shared/{config,services,utils}/**/*.ts",
+      "!src/**/default*.ts",
+      "!src/shared/services/supabase.ts"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "statements": 80,
+        "branches": 80,
+        "functions": 80,
+        "lines": 80
+      }
+    }
+  }
 }
