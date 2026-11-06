@@ -3,6 +3,10 @@
 # dependencies
 node_modules/
 
+# local tooling (git/deno/npm caches live inside the workspace on this machine)
+.npm-cache/
+.tools/
+
 # Expo
 .expo/
 dist/

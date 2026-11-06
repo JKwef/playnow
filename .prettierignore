@@ -5,4 +5,5 @@ web-build
 ios
 android
 coverage
+.tools
 package-lock.json
