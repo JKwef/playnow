@@ -55,7 +55,8 @@
     "preset": "jest-expo",
     "testPathIgnorePatterns": [
       "/node_modules/",
-      "/supabase/functions/"
+      "/supabase/functions/",
+      "/\\.tools/"
     ]
   },
   "private": true

@@ -24,6 +24,59 @@
 
 ---
 
+## Статус выполнения
+
+Работы по всем семи тредам выполнены в этой сессии. Ниже — что сделано и как
+это проверено.
+
+| Тред | Статус | Результат                                                                                                                                                                                  |
+| ---- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| T1   | готово | 119 текстовых файлов переведены в LF, добавлен `.gitattributes`. `eslint .` — 0 ошибок (было 4730), `prettier --check .` — чисто, `tsc --noEmit` — 0.                                      |
+| T2   | готово | Portable MinGit 2.56.0 в `.tools\git`, репозиторий цел (`git fsck` — 0), два коммита: нормализация переводов строк и тесты/CI/документация. `git status` чистый.                           |
+| T3   | готово | `jest-expo` + `@testing-library/react-native`, 109 тестов в `tests/unit` — все проходят; в `package.json` скрипты `test`/`test:ci` и пресет `jest-expo`.                                   |
+| T4   | готово | Portable Deno 2.9.8 в `.tools\deno`, `deno check` по трём функциям — чисто, 36 тестов функций проходят (in-process раннер), `scripts/check-functions.ps1`, `supabase/functions/README.md`. |
+| T5   | готово | `.env` не нужен: значения по умолчанию из `app.json → extra` (3 публичных поля, секретов нет). Web-сборка `expo export --platform web` — успешно. README и `docs/SETUP_KEYS.md` обновлены. |
+| T6   | готово | `expo-doctor` прогнан (частично в обход песочницы): 18/20 проверок проходят, два реальных замечания вынесены ниже как отдельные задачи.                                                    |
+| T7   | готово | `.github/workflows/ci.yml`: `npm ci` → typecheck → lint → format:check → `npm test -- --ci`. YAML проверен Prettier; live-прогон возможен только после push.                               |
+
+Итоговая проверка: `npm run validate` (typecheck + lint + format:check) и
+`npx jest --ci --runInBand` — всё зелёное.
+
+### Что осталось и требует решения
+
+1. **`app.json → splash` не проходит схему SDK 58.** Поле `splash` в корне
+   конфига удалено в SDK 58; либо убрать его (останется дефолтный сплэш), либо
+   поставить `expo-splash-screen` и перенести настройки в плагин. Не менял:
+   это влияет на внешний вид первого экрана.
+2. **Дрейф версий пакетов.** `expo 58.0.22 → ~58.0.23`,
+   `@expo/metro-runtime → ~58.0.17`, `expo-constants → ~58.0.15`,
+   `expo-linking → ~58.0.16`, `react-native-safe-area-context 5.10.1 → ~5.11.1`.
+   Лечится `npx expo install --fix`, но `safe-area-context` — нативный модуль,
+   поэтому нужен новый development build. Не катил без пересборки.
+3. **`deno test` в песочнице DSH невозможен** (запрет Windows named pipes для
+   worker-процессов). На обычной машине и в CI команда штатная; локально
+   используйте `powershell -ExecutionPolicy Bypass -File scripts\check-functions.ps1`.
+4. **CI ещё не запускался на GitHub** — нужен push в `origin/main`.
+5. **`scripts/check-functions.ps1` записан в UTF-8 с BOM** (иначе PowerShell 5.1
+   читает файл как ANSI и падает на кириллице). Если BOM нежелателен — сообщения
+   скрипта нужно писать латиницей.
+
+### Как жить в новых сессиях
+
+`git` и `deno` не установлены в системе, они лежат внутри проекта и исключены
+из индекса:
+
+```powershell
+$env:PATH = 'D:\playnow\.tools\git\cmd;' + $env:PATH
+$env:DENO_DIR = 'D:\playnow\.tools\deno-cache'
+$env:npm_config_cache = 'D:\playnow\.npm-cache'   # иначе npm падает с EPERM
+```
+
+Каталог `.git` был пересоздан (старый не давал git писать из-за прав песочницы);
+резервная копия прежнего — `D:\playnow-acl-reports\git-old-backup`.
+
+---
+
 ## Порядок работ
 
 ```
