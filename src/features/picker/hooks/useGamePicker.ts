@@ -13,6 +13,7 @@ import { PICKER_MODE_LABELS, type PickerContext, type PickerMode } from '../type
 import { filterCandidates, pickGame, priorityOf } from '../utils/pickGame';
 import { explainPick } from '../utils/explainPick';
 import { useBlacklist } from './useBlacklist';
+import { useInstalledGames } from '@/features/backlog/hooks/useInstalledGames';
 
 export type PickerStatus =
   /** Ещё нет бэклога или чёрного списка. */
@@ -59,6 +60,7 @@ export interface UseGamePickerResult {
 interface PickerOptions {
   mode?: PickerMode;
   ignoreGenres?: boolean;
+  installedOnly?: boolean;
   blacklistService?: BlacklistService;
 }
 interface Series {
@@ -75,15 +77,21 @@ interface Series {
  */
 export const useGamePicker = (
   context: PickerContext,
-  { mode = 'new', ignoreGenres = false, blacklistService }: PickerOptions = {},
+  {
+    mode = 'new',
+    ignoreGenres = false,
+    installedOnly = false,
+    blacklistService,
+  }: PickerOptions = {},
 ): UseGamePickerResult => {
   const backlog = useBacklog();
   const { games } = backlog;
   const preferences = useGamePreferences();
+  const installed = useInstalledGames();
   const blacklist = useBlacklist(blacklistService);
   const postponed = blacklist.postponed;
   const steamId = useAuth((state) => state.user?.steamId ?? null);
-  const scope = `${steamId ?? ''}:${accountRevision(steamId ?? '')}:${context.id}:${mode}:${ignoreGenres}`;
+  const scope = `${steamId ?? ''}:${accountRevision(steamId ?? '')}:${context.id}:${mode}:${ignoreGenres}:${installedOnly}`;
   const [series, setSeries] = useState<Series>(() => ({
     scope,
     currentId: null,
@@ -103,8 +111,19 @@ export const useGamePicker = (
         preferences: preferences.preferences,
         mode,
         ignoreGenres,
+        installedOnly,
+        installedIds: installed.marked,
       }),
-    [games, context, postponed, preferences.preferences, mode, ignoreGenres],
+    [
+      games,
+      context,
+      postponed,
+      preferences.preferences,
+      mode,
+      ignoreGenres,
+      installedOnly,
+      installed.marked,
+    ],
   );
   const previousSeen = useMemo(() => new Set(active.shown), [active.shown]);
   const available = candidates.filter(
@@ -126,6 +145,7 @@ export const useGamePicker = (
     !preferences.isLoading &&
     !preferences.isUnavailable &&
     !blacklist.isLoading &&
+    (!installedOnly || installed.isReady) &&
     !blacklist.errorMessage;
   const game = canPick
     ? (retained ??
@@ -182,6 +202,8 @@ export const useGamePicker = (
   let status: PickerStatus = 'ready';
   if (backlog.status === 'error') status = 'error';
   else if (preferences.isUnavailable || blacklist.errorMessage) status = 'error';
+  else if (installedOnly && !installed.isReady && installed.error) status = 'error';
+  else if (installedOnly && !installed.isReady) status = 'loading';
   else if (games === undefined || blacklist.isLoading || preferences.isLoading) status = 'loading';
   else if (game === null) status = 'empty';
 
@@ -190,6 +212,8 @@ export const useGamePicker = (
     preferences: preferences.preferences,
     mode,
     ignoreGenres: true,
+    installedOnly,
+    installedIds: installed.marked,
   });
   const allowedCount = (games ?? []).filter(
     (item) =>
@@ -205,9 +229,11 @@ export const useGamePicker = (
         : 'В библиотеке пока нет игр.'
       : allowedCount === 0
         ? 'Все игры пройдены, постоянно исключены или отложены.'
-        : modeCandidates.length === 0
-          ? `В режиме «${PICKER_MODE_LABELS[mode]}» нет игр с подходящим статусом или временем игры.`
-          : 'Нет игр, подходящих одновременно выбранному режиму и жанрам контекста.';
+        : modeCandidates.length === 0 && installedOnly
+          ? 'Среди отмеченных установленными нет игр выбранного режима. Проверьте отметки в библиотеке или явно отключите фильтр установки.'
+          : modeCandidates.length === 0
+            ? `В режиме «${PICKER_MODE_LABELS[mode]}» нет игр с подходящим статусом или временем игры.`
+            : 'Нет игр, подходящих одновременно выбранному режиму и жанрам контекста.';
 
   return {
     status,
@@ -224,7 +250,20 @@ export const useGamePicker = (
     restart,
     emptyReason,
     reasons: game
-      ? explainPick(game, context, mode, preferences.preferences.get(game.appid), ignoreGenres)
+      ? [
+          ...explainPick(
+            game,
+            context,
+            mode,
+            preferences.preferences.get(game.appid),
+            ignoreGenres,
+          ),
+          ...(installedOnly
+            ? [
+                'Вы вручную отметили игру установленной на игровом компьютере. Установка не проверяется автоматически.',
+              ]
+            : []),
+        ]
       : [],
     canRelaxGenres:
       !ignoreGenres && metadataIncomplete && candidates.length === 0 && modeCandidates.length > 0,
@@ -243,15 +282,24 @@ export const useGamePicker = (
             : 'Метаданные ещё не проверены полностью. Можно повторить обработку.',
     retryMetadata: backlog.retryGenres,
     isRetryingMetadata: backlog.genresStatus === 'loading',
-    errorCode: preferences.isUnavailable || blacklist.errorMessage ? 'server' : backlog.errorCode,
+    errorCode:
+      preferences.isUnavailable ||
+      blacklist.errorMessage ||
+      (installedOnly && !installed.isReady && installed.error)
+        ? 'server'
+        : backlog.errorCode,
     errorMessage: preferences.isUnavailable
       ? preferences.loadError
-      : (blacklist.errorMessage ?? backlog.errorMessage),
+      : (blacklist.errorMessage ??
+        (installedOnly && !installed.isReady ? installed.error : null) ??
+        backlog.errorMessage),
     isRetrying: backlog.isRefreshing || preferences.isRefreshing,
     refresh: preferences.isUnavailable
       ? preferences.retry
-      : blacklist.errorMessage
-        ? blacklist.retry
-        : backlog.refresh,
+      : installedOnly && !installed.isReady
+        ? installed.retry
+        : blacklist.errorMessage
+          ? blacklist.retry
+          : backlog.refresh,
   };
 };

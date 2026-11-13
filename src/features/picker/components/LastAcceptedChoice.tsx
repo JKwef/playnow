@@ -43,6 +43,7 @@ export function LastAcceptedChoice({
       <Text style={text}>
         {PICKER_MODE_LABELS[choice.mode]} · {findContext(choice.contextId)?.title}
         {choice.genreFilter === 'any' ? ' · без фильтра жанров' : ''}
+        {choice.installedOnly ? ' · при подборе: только отмеченные установленными' : ''}
       </Text>
       <Text style={text}>
         Принято: {new Date(choice.acceptedAt).toLocaleString('ru-RU')}. Сохранено на этом

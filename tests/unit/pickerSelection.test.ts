@@ -22,6 +22,23 @@ const memory = () => {
   };
 };
 
+test('installed-only filter is off for old caches and is restored independently for each account', async () => {
+  const storage = memory();
+  storage.values.set(
+    'playnow:pickerSelection:v1:A',
+    JSON.stringify({ mode: 'new', contextId: 'action' }),
+  );
+  const store = createPickerSelectionStore(storage);
+  await store.getState().load('A');
+  expect(store.getState().selection.installedOnly ?? false).toBe(false);
+  await store.getState().change('A', { installedOnly: true });
+  const restored = createPickerSelectionStore(storage);
+  await restored.getState().load('A');
+  expect(restored.getState().selection.installedOnly).toBe(true);
+  await restored.getState().load('B');
+  expect(restored.getState().selection.installedOnly ?? false).toBe(false);
+});
+
 test('first use selects New; mode and context survive a restart and are isolated by account', async () => {
   const storage = memory();
   const store = createPickerSelectionStore(storage);

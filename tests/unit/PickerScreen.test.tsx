@@ -68,6 +68,21 @@ beforeEach(async () => {
 });
 afterEach(() => useAuth.setState({ user: null, status: 'signedOut' }));
 
+it('explicitly enables the installed-only filter and passes it to the result', async () => {
+  const screen = await renderPicker();
+  await fireEvent.press(screen.getByRole('checkbox', { name: 'Только отмеченные установленными' }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: 'Подобрать игру  →' }).props.accessibilityState.disabled,
+    ).toBe(false),
+  );
+  await fireEvent.press(screen.getByRole('button', { name: 'Подобрать игру  →' }));
+  expect(screen.navigate).toHaveBeenCalledWith(
+    'Result',
+    expect.objectContaining({ installedOnly: true }),
+  );
+});
+
 it('selects a mood before navigating and counts only available games', async () => {
   const screen = await renderPicker();
   const action = screen.getByRole('radio', { name: /Больше драйва.*Доступно игр: 1/ });

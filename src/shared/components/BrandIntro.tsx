@@ -18,7 +18,7 @@ import { PixelCursor, PixelHero } from './PixelHero';
 export const BRAND_INTRO_DURATION_MS = 3600;
 
 /** Одна временная шкала синхронизирует прыжок, сальто, Play, клик и финальный логотип. */
-export function BrandIntro() {
+export function BrandIntro({ allowReplay = false }: { allowReplay?: boolean }) {
   const styles = useThemedStyles(createStyles);
 
   const [time] = useState(() => new Animated.Value(BRAND_INTRO_DURATION_MS));
@@ -227,7 +227,7 @@ export function BrandIntro() {
           />
         </Animated.View>
       </View>
-      {!reducedMotion && (
+      {!reducedMotion && (!finished || allowReplay) && (
         <Pressable
           onPress={finished ? () => setRun((current) => current + 1) : skip}
           accessibilityRole="button"

@@ -14,6 +14,15 @@ const input: ChoiceInput = {
 const now = () => new Date('2026-11-13T12:00:00.000Z');
 beforeEach(() => AsyncStorage.clear());
 
+test('accepted choice preserves the installed-only condition across restart', async () => {
+  const store = createAcceptedChoiceStore(AsyncStorage, now);
+  await store.getState().load('A');
+  expect(await store.getState().accept('A', { ...input, installedOnly: true })).toBe(true);
+  const restored = createAcceptedChoiceStore();
+  await restored.getState().load('A');
+  expect(restored.getState().choice?.installedOnly).toBe(true);
+});
+
 test('accept persists exact criteria/time and restart restores; undo restores the previous accepted choice', async () => {
   const store = createAcceptedChoiceStore(AsyncStorage, now);
   await store.getState().load('A');

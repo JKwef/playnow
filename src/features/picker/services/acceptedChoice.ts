@@ -6,6 +6,7 @@ import { accountRevision, queueAccountWrite } from '@/shared/services/accountSco
 import { isRecord } from '@/shared/utils/validation';
 import { isPickerMode, type ContextId, type GenreFilter, type PickerMode } from '../types';
 import { isContextId } from '../utils/contexts';
+import { signalPickerChange } from '@/features/picker/services/pickerSyncSignals';
 
 export interface AcceptedChoice {
   game: { appid: number; name: string };
@@ -13,6 +14,7 @@ export interface AcceptedChoice {
   mode: PickerMode;
   genreFilter: GenreFilter;
   acceptedAt: string;
+  installedOnly?: boolean;
 }
 export type ChoiceInput = Omit<AcceptedChoice, 'acceptedAt'>;
 interface ChoiceState {
@@ -29,7 +31,7 @@ interface ChoiceState {
   reset: () => void;
 }
 const keyFor = (account: string) => `playnow:acceptedChoice:v1:${account}`;
-const validChoice = (value: unknown): value is AcceptedChoice =>
+export const validChoice = (value: unknown): value is AcceptedChoice =>
   isRecord(value) &&
   isRecord(value.game) &&
   Number.isSafeInteger(value.game.appid) &&
@@ -40,6 +42,7 @@ const validChoice = (value: unknown): value is AcceptedChoice =>
   isContextId(value.contextId) &&
   isPickerMode(value.mode) &&
   (value.genreFilter === 'context' || value.genreFilter === 'any') &&
+  (value.installedOnly === undefined || typeof value.installedOnly === 'boolean') &&
   typeof value.acceptedAt === 'string' &&
   Number.isFinite(Date.parse(value.acceptedAt));
 
@@ -80,6 +83,7 @@ export const createAcceptedChoiceStore = (
         });
         if (!current()) return false;
         set({ choice, previous: undo ? null : before.choice, canUndo: !undo, isSaving: false });
+        signalPickerChange(account);
         return true;
       } catch {
         if (current())

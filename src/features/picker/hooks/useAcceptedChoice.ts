@@ -1,8 +1,19 @@
 import { useEffect } from 'react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { createAcceptedChoiceStore, type ChoiceInput } from '../services/acceptedChoice';
+import { subscribePickerChanges } from '@/features/picker/services/pickerSyncSignals';
 
 const store = createAcceptedChoiceStore();
+subscribePickerChanges((account, remote) => {
+  if (
+    remote &&
+    store.getState().account === account &&
+    useAuth.getState().user?.steamId === account
+  ) {
+    store.getState().reset();
+    void store.getState().load(account);
+  }
+});
 useAuth.subscribe((state, previous) => {
   if (state.user?.steamId !== previous.user?.steamId) store.getState().reset();
 });

@@ -14,6 +14,7 @@ import { createNavigationTheme } from '@/navigation/theme';
 import { LoadingIndicator } from '@/shared/components/LoadingIndicator';
 import { ThemeProvider } from '@/shared/theme/ThemeProvider';
 import { useTheme } from '@/shared/theme/useTheme';
+import { PickerSyncBridge } from '@/features/picker/hooks/usePickerSync';
 
 // Веб-версия (проверка на ПК): вход через Steam идёт во всплывающем окне, которое
 // возвращается на /auth. Этот вызов передаёт результат открывшему окну и закрывает
@@ -42,6 +43,7 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider>
         <QueryClientProvider client={queryClient}>
+          <PickerSyncBridge />
           <ThemedNavigation />
         </QueryClientProvider>
       </ThemeProvider>

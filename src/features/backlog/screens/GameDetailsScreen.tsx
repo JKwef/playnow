@@ -18,6 +18,7 @@ import { GameCover } from '../components/GameCover';
 import { GenreChips } from '../components/GenreChips';
 import { GenreEditor } from '../components/GenreEditor';
 import { GamePreferenceControls } from '../components/GamePreferenceControls';
+import { InstalledGameControl } from '@/features/backlog/components/InstalledGameControl';
 import { useBacklog } from '../hooks/useBacklog';
 
 /** Сообщение, если код ошибки не пришёл (неожиданный сбой). */
@@ -51,7 +52,7 @@ export function GameDetailsScreen({ route, navigation }: RootStackScreenProps<'G
           <Button
             label="К списку игр"
             variant="tertiary"
-            onPress={() => navigation.navigate('Backlog')}
+            onPress={() => navigation.popTo('Main', { screen: 'Backlog' })}
           />
         </Screen>
       );
@@ -62,7 +63,10 @@ export function GameDetailsScreen({ route, navigation }: RootStackScreenProps<'G
       <Screen centered>
         <Text style={styles.title}>Игра не найдена</Text>
         <Text style={styles.secondary}>Возможно, её нет в вашем списке. Обновите список игр.</Text>
-        <Button label="К списку игр" onPress={() => navigation.navigate('Backlog')} />
+        <Button
+          label="К списку игр"
+          onPress={() => navigation.popTo('Main', { screen: 'Backlog' })}
+        />
       </Screen>
     );
   }
@@ -80,6 +84,7 @@ export function GameDetailsScreen({ route, navigation }: RootStackScreenProps<'G
       <GenreChips genres={game.genres} />
       <GenreEditor key={game.appid} game={game} />
       <GamePreferenceControls key={`preferences-${game.appid}`} appid={game.appid} />
+      <InstalledGameControl appid={game.appid} />
       <SteamActions key={game.appid} appid={game.appid} />
       <PostponeControls key={`postpone-${game.appid}`} appid={game.appid} />
     </Screen>

@@ -13,6 +13,8 @@ export interface CandidateOptions {
   preferences?: GamePreferences;
   mode?: PickerMode;
   ignoreGenres?: boolean;
+  installedOnly?: boolean;
+  installedIds?: ReadonlySet<number>;
 }
 export interface PickOptions extends CandidateOptions {
   random: () => number;
@@ -47,6 +49,7 @@ export const filterCandidates = (
   games.filter(
     (game) =>
       !options.exclude.has(game.appid) &&
+      (!options.installedOnly || options.installedIds?.has(game.appid) === true) &&
       !isBlockedByPreference(options.preferences?.get(game.appid)) &&
       (options.ignoreGenres || matchesContext(game, context)) &&
       priorityOf(game, options.mode, options.preferences?.get(game.appid)) !== null,

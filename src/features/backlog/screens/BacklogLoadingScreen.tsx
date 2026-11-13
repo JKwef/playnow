@@ -31,7 +31,7 @@ export function BacklogLoadingScreen({ navigation }: RootStackScreenProps<'Backl
   useEffect(() => {
     if (hasGames) {
       // replace: возвращаться кнопкой «Назад» на экран загрузки не нужно.
-      navigation.replace('Picker');
+      navigation.replace('Main');
     }
   }, [hasGames, navigation]);
 
@@ -47,7 +47,7 @@ export function BacklogLoadingScreen({ navigation }: RootStackScreenProps<'Backl
           // можно выйти и попробовать войти снова (навигатор сам покажет вход).
           onSignOut={() => void signOut()}
           // Игры из кэша уже увели бы на Picker через эффект выше; страховка на будущее.
-          onContinue={hasGames ? () => navigation.replace('Picker') : undefined}
+          onContinue={hasGames ? () => navigation.replace('Main') : undefined}
         />
       </Screen>
     );
@@ -61,11 +61,7 @@ export function BacklogLoadingScreen({ navigation }: RootStackScreenProps<'Backl
           В библиотеке пока нет игр
         </Text>
         <Text style={styles.subtitle}>Повторите импорт, если вы недавно добавили игры в Steam</Text>
-        <Button
-          label="Продолжить"
-          variant="secondary"
-          onPress={() => navigation.replace('Picker')}
-        />
+        <Button label="Продолжить" variant="secondary" onPress={() => navigation.replace('Main')} />
         <Button
           label={isRefreshing ? 'Загружаем…' : 'Обновить'}
           variant="tertiary"

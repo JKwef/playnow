@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { CacheStorage } from '@/features/backlog/services/backlogCache';
 import { isRecord } from '@/shared/utils/validation';
 import { accountRevision, queueAccountWrite } from '@/shared/services/accountScope';
+import { signalPickerChange } from '@/features/picker/services/pickerSyncSignals';
 
 /** На сколько дней «Отложить» убирает игру из подбора (FR4.3). */
 export const POSTPONE_DAYS = 7;
@@ -38,7 +39,7 @@ const keyFor = (steamId: string): string => `playnow:blacklist:v1:${steamId}`;
 
 /**
  * Чёрный список «Отложить» (FR4.4). Хранится локально в AsyncStorage (SEC1 это допускает),
- * отдельно для каждого аккаунта. Подбор работает оффлайн (NFR2.3), поэтому не в Supabase.
+ * отдельно для каждого аккаунта. Облачная копия включается отдельно; подбор работает оффлайн.
  */
 export const createBlacklistService = (
   storage: CacheStorage = AsyncStorage,
@@ -85,18 +86,22 @@ export const createBlacklistService = (
       .catch(() => undefined)
       .then(async () => {
         if (!active()) return new Map<number, number>();
-        const entries = await load(steamId);
+        let entries = await load(steamId);
         if (!active()) return entries;
-        change?.(entries);
         try {
           await queueAccountWrite(steamId, async () => {
-            if (active())
-              await storage.setItem(keyFor(steamId), JSON.stringify(Object.fromEntries(entries)));
+            if (!active()) return;
+            // A remote snapshot may have landed since the unqueued read above.
+            entries = await load(steamId);
+            if (!active()) return;
+            change?.(entries);
+            await storage.setItem(keyFor(steamId), JSON.stringify(Object.fromEntries(entries)));
           });
         } catch (error) {
           if (change) throw error;
           console.warn('blacklist prune failed');
         }
+        if (change && active()) signalPickerChange(steamId);
         return entries;
       });
     operations.set(steamId, operation);

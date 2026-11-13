@@ -12,6 +12,31 @@ import { seededRandom } from '@/shared/utils/random';
 import { makeGame } from './fixtures/game';
 
 const context = findContext('action')!;
+
+test('installed filter is explicit and genre relaxation never bypasses marks or exclusions', () => {
+  const games = [
+    makeGame({ appid: 1, genres: ['action'] }),
+    makeGame({ appid: 2, genres: [] }),
+    makeGame({ appid: 3, genres: ['action'] }),
+  ];
+  const base = { exclude: new Set<number>(), mode: 'new' as const };
+  expect(filterCandidates(games, context, base).map((game) => game.appid)).toEqual([1, 3]);
+  const options = {
+    ...base,
+    installedOnly: true,
+    installedIds: new Set([2, 3]),
+    ignoreGenres: true,
+    exclude: new Set([3]),
+  };
+  expect(filterCandidates(games, context, options).map((game) => game.appid)).toEqual([2]);
+  expect(filterCandidates(games, context, { ...options, installedIds: undefined })).toEqual([]);
+  expect(
+    filterCandidates(games, context, {
+      ...options,
+      preferences: new Map([[2, { progressStatus: 'completed', excluded: false }]]),
+    }),
+  ).toEqual([]);
+});
 const exclude = new Set<number>();
 const game = (appid: number, playtimeMinutes = 0) =>
   makeGame({ appid, playtimeMinutes, genres: ['action'] });

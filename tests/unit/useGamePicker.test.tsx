@@ -32,6 +32,15 @@ const mockPreferences = {
   loadError: null as string | null,
   retry: jest.fn(async () => undefined),
 };
+const mockInstalled = {
+  marked: new Set<number>(),
+  isReady: true,
+  error: null as string | null,
+  retry: jest.fn(async () => undefined),
+};
+jest.mock('@/features/backlog/hooks/useInstalledGames', () => ({
+  useInstalledGames: () => mockInstalled,
+}));
 jest.mock('@/features/backlog/hooks/useBacklog', () => ({ useBacklog: () => mockBacklog }));
 jest.mock('@/features/backlog/hooks/useGamePreferences', () => ({
   useGamePreferences: () => mockPreferences,
@@ -40,6 +49,9 @@ jest.mock('@/features/picker/hooks/useBlacklist', () => ({ useBlacklist: () => m
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockInstalled.marked = new Set();
+  mockInstalled.isReady = true;
+  mockInstalled.error = null;
   mockBlacklist.postponed = new Map();
   mockBlacklist.errorMessage = null;
   mockPreferences.preferences = new Map();
@@ -48,6 +60,43 @@ beforeEach(() => {
   mockPreferences.loadError = null;
   mockBacklog.games = [game];
   mockBacklog.genresStatus = 'done';
+});
+
+test('installed-only selects marked games and explains that the installation was manually marked', async () => {
+  mockBacklog.games = [
+    makeGame({ appid: 1, genres: ['action'] }),
+    makeGame({ appid: 2, genres: ['action'] }),
+  ];
+  mockInstalled.marked = new Set([2]);
+  const { result, rerender } = await renderHook(() =>
+    useGamePicker(findContext('action')!, { installedOnly: true }),
+  );
+  expect(result.current.game?.appid).toBe(2);
+  expect(result.current.reasons.join(' ')).toContain('вручную');
+  mockInstalled.marked = new Set();
+  await rerender({});
+  expect(result.current.status).toBe('empty');
+  expect(result.current.emptyReason).toContain('отмеченных установленными');
+});
+
+test('unavailable marks fail closed only when explicitly filtering by installation', async () => {
+  mockInstalled.isReady = false;
+  const { result, rerender } = await renderHook(
+    ({ only }: { only: boolean }) => useGamePicker(findContext('action')!, { installedOnly: only }),
+    { initialProps: { only: true } },
+  );
+  expect(result.current.status).toBe('loading');
+  expect(result.current.game).toBeNull();
+  mockInstalled.error = 'Отметки недоступны';
+  await rerender({ only: true });
+  expect(result.current.status).toBe('error');
+  await act(async () => {
+    await result.current.refresh();
+  });
+  expect(mockInstalled.retry).toHaveBeenCalledTimes(1);
+  await rerender({ only: false });
+  expect(result.current.status).toBe('ready');
+  expect(result.current.game).not.toBeNull();
 });
 
 test('failed postponement keeps the same game available and reports the failure', async () => {

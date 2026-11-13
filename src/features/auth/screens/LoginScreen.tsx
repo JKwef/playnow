@@ -1,3 +1,4 @@
+import type { RootStackScreenProps } from '@/navigation/types';
 import type { ThemeColors } from '@/shared/constants/colors';
 import { useThemedStyles } from '@/shared/theme/useTheme';
 import { StyleSheet, Text, View } from 'react-native';
@@ -9,7 +10,7 @@ import { Screen } from '@/shared/components/Screen';
 import { ThemeSelector } from '@/shared/components/ThemeSelector';
 import { fontSize, spacing } from '@/shared/constants';
 
-export function LoginScreen() {
+export function LoginScreen({ navigation }: RootStackScreenProps<'Login'>) {
   const styles = useThemedStyles(createStyles);
 
   const signIn = useAuth((state) => state.signIn);
@@ -41,6 +42,17 @@ export function LoginScreen() {
           </View>
         ))}
       </View>
+      <Text style={styles.trust}>
+        Для импорта в Steam открой «Мой профиль» и «Игровая информация»: Профиль → Редактировать
+        профиль → Настройки приватности. Сними флажок скрытия общего времени в играх. При закрытых
+        данных мы покажем инструкцию и повтор импорта.
+      </Text>
+      <Button
+        label="Попробовать без входа"
+        variant="secondary"
+        disabled={isBusy}
+        onPress={() => navigation.navigate('Demo')}
+      />
       <Button
         label={isBusy ? 'Открываем Steam…' : 'Продолжить со Steam  ↗'}
         accessibilityHint="Откроет защищённую страницу входа Steam"

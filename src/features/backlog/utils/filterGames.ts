@@ -11,7 +11,7 @@ export const SORT_OPTIONS: readonly { value: SortOption; label: string }[] = [
   { value: 'last_played_desc', label: 'Недавно запускал' },
   { value: 'playtime_asc', label: 'Меньше всего играл' },
   { value: 'playtime_desc', label: 'Больше всего играл' },
-  { value: 'added_desc', label: 'Сначала новые' },
+  { value: 'added_desc', label: 'Недавно добавлены в Quaeso' },
 ];
 
 export interface GameFilters {

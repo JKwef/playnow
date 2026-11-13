@@ -37,14 +37,22 @@ const memory = () => {
 
 test('deletion clears all account features, preserves other account and device theme', async () => {
   const storage = memory();
-  for (const feature of ['backlog', 'blacklist', 'statuses', 'acceptedChoice']) {
+  for (const feature of [
+    'backlog',
+    'blacklist',
+    'statuses',
+    'acceptedChoice',
+    'recommendationHistory',
+    'installedGames',
+    'pickerSync',
+  ]) {
     storage.values.set(`playnow:${feature}:v1:${A}`, 'private');
     storage.values.set(`playnow:${feature}:v1:${B}`, 'other');
   }
   storage.values.set('quaeso:theme', 'light');
   await clearAccountData(A, storage);
   expect([...storage.values.keys()].filter((key) => key.endsWith(A))).toEqual([]);
-  expect(storage.values.size).toBe(5);
+  expect(storage.values.size).toBe(8);
   expect(storage.values.get('quaeso:theme')).toBe('light');
 });
 

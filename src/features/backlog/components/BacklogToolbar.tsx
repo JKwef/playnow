@@ -130,9 +130,7 @@ function Chip({ label, active, accessibilityHint, onPress }: ChipProps) {
       accessibilityHint={accessibilityHint}
       style={({ pressed }) => [styles.chip, active && styles.chipActive, pressed && styles.pressed]}
     >
-      <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>
-        {label} ▾
-      </Text>
+      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label} ▾</Text>
     </Pressable>
   );
 }
@@ -150,7 +148,7 @@ const createStyles = (colors: ThemeColors) =>
     search: { flex: 1, minHeight: 48, color: colors.textPrimary, fontSize: fontSize.body },
     clear: { padding: 4 },
     clearText: { color: colors.textSecondary, fontSize: fontSize.body },
-    filters: { flexDirection: 'row', gap: spacing.xs },
+    filters: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
     chip: {
       flexShrink: 1,
       minHeight: 44,

@@ -18,6 +18,7 @@ import { usePickerSelection } from '../hooks/usePickerSelection';
 import { PICKER_MODE_LABELS, type PickerMode } from '../types';
 import { PICKER_CONTEXTS } from '../utils/contexts';
 import { filterCandidates } from '../utils/pickGame';
+import { useInstalledGames } from '@/features/backlog/hooks/useInstalledGames';
 
 export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
   const styles = useThemedStyles(createStyles);
@@ -28,6 +29,8 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
   const { postponed, isLoading: isBlacklistLoading } = blacklist;
   const preferences = useGamePreferences();
   const settings = usePickerSelection();
+  const installed = useInstalledGames();
+  const installedOnly = settings.selection.installedOnly === true;
   const { mode, contextId: selected } = settings.selection;
   const counts = useMemo(
     () =>
@@ -38,14 +41,20 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
             exclude: new Set(postponed.keys()),
             preferences: preferences.preferences,
             mode,
+            installedOnly,
+            installedIds: installed.marked,
           }).length,
         ]),
       ),
-    [games, postponed, preferences.preferences, mode],
+    [games, postponed, preferences.preferences, mode, installedOnly, installed.marked],
   );
   const count = counts.get(selected) ?? 0;
   const loading =
-    status === 'loading' || isBlacklistLoading || preferences.isLoading || !settings.isReady;
+    status === 'loading' ||
+    isBlacklistLoading ||
+    preferences.isLoading ||
+    !settings.isReady ||
+    (installedOnly && !installed.isReady && !installed.error);
 
   return (
     <Screen
@@ -57,10 +66,16 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
               loading ||
               preferences.isUnavailable ||
               !!blacklist.errorMessage ||
-              games === undefined
+              games === undefined ||
+              (installedOnly && !installed.isReady)
             }
             onPress={() =>
-              navigation.navigate('Result', { contextId: selected, mode, genreFilter: 'context' })
+              navigation.navigate('Result', {
+                contextId: selected,
+                mode,
+                genreFilter: 'context',
+                ...(installedOnly ? { installedOnly: true } : {}),
+              })
             }
           />
           <Text style={styles.hint} accessibilityLiveRegion="polite">
@@ -80,24 +95,16 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
       }
     >
       <View style={styles.intro}>
-        <Text style={styles.eyebrow}>ТВОЯ БИБЛИОТЕКА. ТВОЙ МОМЕНТ.</Text>
         <Text accessibilityRole="header" style={styles.title}>
-          Во что играем{'\n'}сегодня?
+          Во что играем?
         </Text>
-        <Text style={styles.subtitle}>Выбери настроение. Остальное — за Quaeso.</Text>
       </View>
-      <LastAcceptedChoice
-        games={games}
-        canPickAnother={settings.isReady}
-        onPickAnother={() =>
-          navigation.navigate('Result', { contextId: selected, mode, genreFilter: 'context' })
-        }
-      />
       <View style={styles.modes} accessibilityRole="radiogroup" accessibilityLabel="Режим подбора">
         {(['new', 'continue'] as const).map((value: PickerMode) => (
           <Pressable
             key={value}
             accessibilityRole="radio"
+            aria-checked={mode === value}
             accessibilityState={{ checked: mode === value, disabled: !settings.isReady }}
             accessibilityLabel={PICKER_MODE_LABELS[value]}
             disabled={!settings.isReady}
@@ -121,6 +128,51 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
           {settings.error}
         </Text>
       )}
+      <Text style={styles.section}>Какой у тебя настрой?</Text>
+      <Button
+        label={`${installedOnly ? '✓ ' : '○ '}Только отмеченные установленными`}
+        accessibilityLabel="Только отмеченные установленными"
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: installedOnly, disabled: !settings.isReady }}
+        aria-checked={installedOnly}
+        variant="secondary"
+        disabled={!settings.isReady}
+        onPress={() => settings.setInstalledOnly(!installedOnly)}
+      />
+      {installedOnly && (
+        <Text style={styles.subtitle}>
+          Только ваши ручные отметки для игрового компьютера, сохранённые на этом устройстве.
+          Отметить игру можно в её карточке.
+        </Text>
+      )}
+      {installedOnly && installed.error && (
+        <Text accessibilityRole="alert" style={styles.noticeText}>
+          {installed.error}
+        </Text>
+      )}
+      {installedOnly && !installed.isReady && installed.error && (
+        <Button
+          label="Повторить загрузку отметок установки"
+          variant="tertiary"
+          onPress={() => void installed.retry()}
+        />
+      )}
+      <View
+        style={styles.grid}
+        accessibilityRole="radiogroup"
+        accessibilityLabel="Настроение для подбора"
+      >
+        {PICKER_CONTEXTS.map((context) => (
+          <ContextCard
+            key={context.id}
+            context={context}
+            matchingCount={counts.get(context.id) ?? 0}
+            selected={selected === context.id}
+            onPress={settings.setContext}
+            disabled={!settings.isReady}
+          />
+        ))}
+      </View>
       <View style={styles.libraryStatus}>
         <View style={styles.statusDot} />
         <Text style={styles.libraryText}>
@@ -161,51 +213,28 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
           />
         </View>
       )}
-      <Text style={styles.section}>Какой у тебя настрой?</Text>
-      <View
-        style={styles.grid}
-        accessibilityRole="radiogroup"
-        accessibilityLabel="Настроение для подбора"
-      >
-        {PICKER_CONTEXTS.map((context) => (
-          <ContextCard
-            key={context.id}
-            context={context}
-            matchingCount={counts.get(context.id) ?? 0}
-            selected={selected === context.id}
-            onPress={settings.setContext}
-            disabled={!settings.isReady}
-          />
-        ))}
-      </View>
-      <View style={styles.shortcuts}>
-        <View style={styles.shortcut}>
-          <Button
-            label="Библиотека"
-            variant="secondary"
-            onPress={() => navigation.navigate('Backlog')}
-          />
-        </View>
-        <View style={styles.shortcut}>
-          <Button
-            label="Настройки"
-            variant="secondary"
-            onPress={() => navigation.navigate('Settings')}
-          />
-        </View>
-      </View>
+      <LastAcceptedChoice
+        games={games}
+        canPickAnother={settings.isReady}
+        onPickAnother={() =>
+          navigation.navigate('Result', {
+            contextId: selected,
+            mode,
+            genreFilter: 'context',
+            ...(installedOnly ? { installedOnly: true } : {}),
+          })
+        }
+      />
+      <Button
+        label="История рекомендаций"
+        variant="secondary"
+        onPress={() => navigation.navigate('RecommendationHistory')}
+      />
       {postponed.size > 0 && (
         <Button
           label={`Отложенные игры · ${postponed.size}`}
           variant="tertiary"
           onPress={() => navigation.navigate('Postponed')}
-        />
-      )}
-      {games !== undefined && games.length === 0 && (
-        <Button
-          label="Добавить первую игру"
-          variant="secondary"
-          onPress={() => navigation.navigate('AddGame')}
         />
       )}
     </Screen>
@@ -227,11 +256,10 @@ const createStyles = (colors: ThemeColors) =>
     },
     modeSelected: { borderColor: colors.secondary, backgroundColor: colors.mintMuted },
     modeText: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
-    eyebrow: { color: colors.secondary, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
     title: {
       color: colors.textPrimary,
-      fontSize: 34,
-      lineHeight: 40,
+      fontSize: 26,
+      lineHeight: 32,
       fontWeight: '800',
       letterSpacing: -1,
     },
@@ -251,8 +279,6 @@ const createStyles = (colors: ThemeColors) =>
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
     action: { gap: 10, marginTop: 4 },
     hint: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, textAlign: 'center' },
-    shortcuts: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: 4 },
-    shortcut: { flex: 1, minWidth: 128 },
     notice: { gap: 12, padding: 16, borderRadius: 16, backgroundColor: colors.surface },
     noticeText: { color: colors.error, fontSize: 14 },
   });

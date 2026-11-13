@@ -29,5 +29,8 @@ export const usePickerSelection = () => {
     setContext: (contextId: ContextId) => {
       if (steamId) void state.change(steamId, { contextId });
     },
+    setInstalledOnly: (installedOnly: boolean) => {
+      if (steamId) void state.change(steamId, { installedOnly });
+    },
   };
 };

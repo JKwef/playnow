@@ -3,12 +3,13 @@ import { useThemedStyles } from '@/shared/theme/useTheme';
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useBacklog } from '@/features/backlog/hooks/useBacklog';
 import { Button } from '@/shared/components/Button';
+import { BrandIntro } from '@/shared/components/BrandIntro';
 import { BrandHeader } from '@/shared/components/BrandLogo';
 import { Card } from '@/shared/components/Card';
 import { Screen } from '@/shared/components/Screen';
@@ -20,10 +21,12 @@ import { SettingsRow } from '../components/SettingsRow';
 import { useDeleteAccount } from '../hooks/useDeleteAccount';
 import { useSignOut } from '../hooks/useSignOut';
 import { readAppInfo } from '../utils/appInfo';
+import { PickerSyncPanel } from '@/features/picker/components/PickerSyncPanel';
 
 /** Настройки (FR6.1, UI2): обновить бэклог, выйти, удалить аккаунт, версия, политика. */
 export function SettingsScreen() {
   const styles = useThemedStyles(createStyles);
+  const [intro, setIntro] = useState(false);
 
   const steamId = useAuth((state) => state.user?.steamId ?? null);
   const backlog = useBacklog();
@@ -89,6 +92,7 @@ export function SettingsScreen() {
       <Text accessibilityRole="header" style={styles.section}>
         Аккаунт
       </Text>
+      <PickerSyncPanel games={backlog.games} />
       <Card style={styles.card}>
         {steamId !== null ? <SettingsRow label="Steam ID" value={steamId} /> : null}
         <Button
@@ -120,6 +124,12 @@ export function SettingsScreen() {
       </Text>
       <Card style={styles.card}>
         <SettingsRow label="Версия" value={appInfo.version} />
+        <Button
+          label={intro ? 'Скрыть заставку' : 'Посмотреть заставку'}
+          variant="tertiary"
+          onPress={() => setIntro(!intro)}
+        />
+        {intro && <BrandIntro allowReplay />}
         {appInfo.privacyPolicyUrl !== null ? (
           <SettingsRow
             label="Политика конфиденциальности"

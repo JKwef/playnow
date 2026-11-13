@@ -11,6 +11,7 @@ import { isContextId } from '../utils/contexts';
 export interface PickerSelection {
   mode: PickerMode;
   contextId: ContextId;
+  installedOnly?: boolean;
 }
 export const DEFAULT_PICKER_SELECTION: PickerSelection = {
   mode: 'new',
@@ -53,9 +54,14 @@ export const createPickerSelectionStore = (storage: CacheStorage = AsyncStorage)
             isRecord(parsed) &&
             isPickerMode(parsed.mode) &&
             typeof parsed.contextId === 'string' &&
-            isContextId(parsed.contextId)
+            isContextId(parsed.contextId) &&
+            (parsed.installedOnly === undefined || typeof parsed.installedOnly === 'boolean')
           )
-            selection = { mode: parsed.mode, contextId: parsed.contextId };
+            selection = {
+              mode: parsed.mode,
+              contextId: parsed.contextId,
+              ...(parsed.installedOnly === true ? { installedOnly: true } : {}),
+            };
           else error = 'Сохранённые настройки подбора недоступны. Выбран режим «Новое».';
         }
       } catch {
@@ -67,7 +73,12 @@ export const createPickerSelectionStore = (storage: CacheStorage = AsyncStorage)
     change: async (steamId, patch) => {
       if (get().account !== steamId || !get().isReady) return;
       const selection = { ...get().selection, ...patch };
-      if (!isPickerMode(selection.mode) || !isContextId(selection.contextId)) return;
+      if (
+        !isPickerMode(selection.mode) ||
+        !isContextId(selection.contextId) ||
+        (selection.installedOnly !== undefined && typeof selection.installedOnly !== 'boolean')
+      )
+        return;
       const request = ++operation;
       const revision = accountRevision(steamId);
       set({ selection, error: null });

@@ -72,7 +72,10 @@ export function PostponedScreen({ navigation }: RootStackScreenProps<'Postponed'
             <Text style={styles.hint}>
               На экране результата или в карточке игры выберите «До завтра» или «На неделю».
             </Text>
-            <Button label="К подбору" onPress={() => navigation.navigate('Picker')} />
+            <Button
+              label="К подбору"
+              onPress={() => navigation.popTo('Main', { screen: 'Picker' })}
+            />
           </View>
         }
         renderItem={({ item }) => {

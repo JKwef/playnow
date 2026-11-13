@@ -17,9 +17,14 @@ import { fontSize } from '@/shared/constants';
 import { GameResult } from '../components/GameResult';
 import { useGamePicker } from '../hooks/useGamePicker';
 import { useBlacklist } from '../hooks/useBlacklist';
+import { RecommendationRecorder } from '@/features/picker/components/RecommendationRecorder';
+import { RefusalFeedback } from '@/features/picker/components/RefusalFeedback';
+import type { ChoiceInput } from '@/features/picker/services/acceptedChoice';
+import { accountRevision } from '@/shared/services/accountScope';
 import type { PostponeDuration } from '../services/blacklist';
 import { isPickerMode, PICKER_MODE_LABELS, type PickerContext, type PickerMode } from '../types';
 import { findContext } from '../utils/contexts';
+import { InstalledGameControl } from '@/features/backlog/components/InstalledGameControl';
 
 /** Сообщение, если код ошибки не пришёл (неожиданный сбой). */
 const FALLBACK_ERROR = 'Не удалось загрузить ваш список игр';
@@ -31,33 +36,40 @@ export function ResultScreen({ route, navigation }: RootStackScreenProps<'Result
   const context = findContext(route.params.contextId);
   const mode = route.params.mode ?? 'new';
   const genreFilter = route.params.genreFilter ?? 'context';
+  const installedOnly = route.params.installedOnly === true;
   if (
     context === undefined ||
     !isPickerMode(mode) ||
-    (genreFilter !== 'context' && genreFilter !== 'any')
+    (genreFilter !== 'context' && genreFilter !== 'any') ||
+    (route.params.installedOnly !== undefined && typeof route.params.installedOnly !== 'boolean')
   ) {
     // Например, устаревшая ссылка playnow://result/<id>.
     return (
       <Screen centered>
         <Text style={styles.title}>Неизвестные условия подбора</Text>
-        <Button label="К выбору контекста" onPress={() => navigation.navigate('Picker')} />
+        <Button
+          label="К выбору контекста"
+          onPress={() => navigation.popTo('Main', { screen: 'Picker' })}
+        />
       </Screen>
     );
   }
   return (
     <PickedGame
-      key={`${context.id}:${mode}:${genreFilter}`}
+      key={`${context.id}:${mode}:${genreFilter}:${installedOnly}`}
       context={context}
       mode={mode}
       ignoreGenres={genreFilter === 'any'}
+      installedOnly={installedOnly}
       onBack={() => navigation.goBack()}
       onOpenPostponed={() => navigation.navigate('Postponed')}
-      onOpenLibrary={() => navigation.navigate('Backlog')}
+      onOpenLibrary={() => navigation.popTo('Main', { screen: 'Backlog' })}
       onChangeGenres={(relaxed) =>
         navigation.replace('Result', {
           contextId: context.id,
           mode,
           genreFilter: relaxed ? 'any' : 'context',
+          ...(installedOnly ? { installedOnly: true } : {}),
         })
       }
     />
@@ -70,6 +82,7 @@ interface PickedGameProps {
   onOpenPostponed: () => void;
   mode: PickerMode;
   ignoreGenres: boolean;
+  installedOnly: boolean;
   onOpenLibrary: () => void;
   onChangeGenres: (relaxed: boolean) => void;
 }
@@ -78,6 +91,7 @@ function PickedGame({
   context,
   mode,
   ignoreGenres,
+  installedOnly,
   onBack,
   onOpenPostponed,
   onOpenLibrary,
@@ -92,6 +106,11 @@ function PickedGame({
     steamId: string | null;
   } | null>(null);
   const [restoreError, setRestoreError] = useState<string | null>(null);
+  const [lastSkipped, setLastSkipped] = useState<{
+    account: string;
+    revision: number;
+    input: ChoiceInput;
+  } | null>(null);
   const steamId = useAuth((state) => state.user?.steamId ?? null);
   const { restore } = useBlacklist();
   const {
@@ -117,7 +136,7 @@ function PickedGame({
     libraryEmpty,
     retryMetadata,
     isRetryingMetadata,
-  } = useGamePicker(context, { mode, ignoreGenres });
+  } = useGamePicker(context, { mode, ignoreGenres, installedOnly });
   const accepted = useAcceptedChoice();
   const signOut = useAuth((state) => state.signOut);
   const postponeGame = async (duration: PostponeDuration) => {
@@ -147,6 +166,14 @@ function PickedGame({
   };
   const feedback = (
     <>
+      {lastSkipped &&
+        lastSkipped.account === steamId &&
+        lastSkipped.revision === accountRevision(steamId ?? '') && (
+          <RefusalFeedback
+            key={`${lastSkipped.account}:${lastSkipped.revision}:${lastSkipped.input.game.appid}`}
+            input={lastSkipped.input}
+          />
+        )}
       {lastPostponed && lastPostponed.steamId === steamId && (
         <>
           <Text accessibilityLiveRegion="polite" style={styles.note}>
@@ -204,6 +231,15 @@ function PickedGame({
             ? ` Пройдено или исключено: ${excludedCount}. Вернуть игры можно из их карточек в библиотеке.`
             : ''}
         </Text>
+        {installedOnly && (
+          <>
+            <Text style={styles.note}>
+              Фильтр: только отмеченные установленными на игровом компьютере. Ослабление жанров не
+              отключает его.
+            </Text>
+            <Button label="Изменить фильтр установки" variant="secondary" onPress={onBack} />
+          </>
+        )}
         {feedback}
         {errorMessage && (
           <Text accessibilityRole="alert" style={styles.error}>
@@ -276,6 +312,16 @@ function PickedGame({
         </>
       )}
       <GameResult game={game} reasons={reasons} />
+      <InstalledGameControl appid={game.appid} />
+      <RecommendationRecorder
+        input={{
+          game: { appid: game.appid, name: game.name },
+          contextId: context.id,
+          mode,
+          genreFilter: ignoreGenres ? 'any' : 'context',
+          ...(installedOnly ? { installedOnly: true } : {}),
+        }}
+      />
       <Button
         label={accepted.isSaving ? 'Сохраняем выбор…' : 'Выбираю эту игру'}
         disabled={!accepted.isReady || accepted.isSaving}
@@ -285,6 +331,7 @@ function PickedGame({
             contextId: context.id,
             mode,
             genreFilter: ignoreGenres ? 'any' : 'context',
+            ...(installedOnly ? { installedOnly: true } : {}),
           })
         }
       />
@@ -320,7 +367,22 @@ function PickedGame({
             ? 'Начнёт новую серию; игры могут повториться'
             : 'Подберёт ещё не показанную игру под эти условия'
         }
-        onPress={isSeriesExhausted ? restart : next}
+        onPress={() => {
+          if (steamId)
+            setLastSkipped({
+              account: steamId,
+              revision: accountRevision(steamId),
+              input: {
+                game: { appid: game.appid, name: game.name },
+                contextId: context.id,
+                mode,
+                genreFilter: ignoreGenres ? 'any' : 'context',
+                ...(installedOnly ? { installedOnly: true } : {}),
+              },
+            });
+          if (isSeriesExhausted) restart();
+          else next();
+        }}
       />
       <Text style={styles.note}>Не сейчас · отложить на этом устройстве</Text>
       <Button

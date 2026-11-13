@@ -32,6 +32,10 @@ const mockPicker = {
   isRetryingMetadata: false,
 };
 const mockRestore = jest.fn(async (_appid: number) => undefined);
+jest.mock('@react-navigation/native', () => ({
+  ...jest.requireActual('@react-navigation/native'),
+  useIsFocused: () => true,
+}));
 jest.mock('@/features/picker/hooks/useGamePicker', () => ({ useGamePicker: () => mockPicker }));
 jest.mock('@/features/picker/hooks/useBlacklist', () => ({
   useBlacklist: () => ({ restore: mockRestore }),
@@ -42,7 +46,7 @@ jest.mock('@/shared/components/Screen', () => ({
 
 const props = {
   route: { params: { contextId: 'action' } },
-  navigation: { goBack: jest.fn(), navigate: jest.fn(), replace: jest.fn() },
+  navigation: { goBack: jest.fn(), popTo: jest.fn(), navigate: jest.fn(), replace: jest.fn() },
 } as unknown as RootStackScreenProps<'Result'>;
 beforeEach(async () => {
   useAuth.setState({ user: null, status: 'signedOut' });
@@ -119,7 +123,7 @@ test('empty-result actions retry metadata, open the library, and relax genres ex
   await fireEvent.press(
     screen.getByRole('button', { name: 'Проверить статусы и исключения в библиотеке' }),
   );
-  expect(props.navigation.navigate).toHaveBeenCalledWith('Backlog');
+  expect(props.navigation.popTo).toHaveBeenCalledWith('Main', { screen: 'Backlog' });
   await fireEvent.press(screen.getByRole('button', { name: 'Любая игра без фильтра жанров' }));
   expect(props.navigation.replace).toHaveBeenCalledWith('Result', {
     contextId: 'action',
@@ -139,6 +143,75 @@ test('invalid deep-link conditions are rejected instead of silently choosing ano
 });
 
 afterEach(() => useAuth.setState({ user: null, status: 'signedOut' }));
+
+test('genre relaxation preserves installed-only filtering explicitly', async () => {
+  mockPicker.status = 'empty';
+  mockPicker.game = null;
+  mockPicker.metadataIncomplete = true;
+  mockPicker.canRelaxGenres = true;
+  const screen = await render(
+    <ResultScreen
+      {...props}
+      route={{ ...props.route, params: { contextId: 'action', mode: 'new', installedOnly: true } }}
+    />,
+  );
+  await fireEvent.press(screen.getByRole('button', { name: 'Любая игра без фильтра жанров' }));
+  expect(props.navigation.replace).toHaveBeenCalledWith('Result', {
+    contextId: 'action',
+    mode: 'new',
+    genreFilter: 'any',
+    installedOnly: true,
+  });
+});
+
+test('another game remains immediate and never requires or invents a refusal reason', async () => {
+  const screen = await render(<ResultScreen {...props} />);
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: 'Выбираю эту игру' }).props.accessibilityState.disabled,
+    ).toBe(false),
+  );
+  await fireEvent.press(screen.getByRole('button', { name: 'Показать другую игру' }));
+  expect(mockPicker.next).toHaveBeenCalledTimes(1);
+  expect(screen.getByText('Предыдущая рекомендация: «Последняя игра».')).toBeTruthy();
+  expect(screen.queryByRole('radio', { name: 'Не установлена' })).toBeNull();
+  await waitFor(async () =>
+    expect(await AsyncStorage.getItem('playnow:recommendationHistory:v1:A')).not.toBeNull(),
+  );
+  expect(
+    JSON.parse((await AsyncStorage.getItem('playnow:recommendationHistory:v1:A'))!)[0].refusal,
+  ).toBeUndefined();
+  expect(await AsyncStorage.getItem('playnow:acceptedChoice:v1:A')).toBeNull();
+});
+
+test('refusal after next is attached to the previous game, not the currently displayed game', async () => {
+  const previousId = mockGame.appid;
+  mockPicker.next.mockImplementationOnce(() => {
+    mockPicker.game = makeGame({ appid: 42, name: 'Новый результат', genres: ['action'] });
+  });
+  const screen = await render(<ResultScreen {...props} />);
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: 'Выбираю эту игру' }).props.accessibilityState.disabled,
+    ).toBe(false),
+  );
+  await fireEvent.press(screen.getByRole('button', { name: 'Показать другую игру' }));
+  expect(screen.getByText('Новый результат')).toBeTruthy();
+  expect(screen.getByText('Предыдущая рекомендация: «Последняя игра».')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: 'Указать причину (необязательно)' }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole('radio', { name: 'Уже проходил' }).props.accessibilityState.disabled,
+    ).toBe(false),
+  );
+  await fireEvent.press(screen.getByRole('radio', { name: 'Уже проходил' }));
+  const rows = JSON.parse((await AsyncStorage.getItem('playnow:recommendationHistory:v1:A'))!) as {
+    game: { appid: number };
+    refusal?: { reason: string };
+  }[];
+  expect(rows.find((row) => row.game.appid === previousId)?.refusal?.reason).toBe('already_played');
+  expect(rows.find((row) => row.game.appid === 42)?.refusal).toBeUndefined();
+});
 
 test('acceptance persists separately from browsing and undo restores the previous choice', async () => {
   const screen = await render(<ResultScreen {...props} />);

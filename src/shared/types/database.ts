@@ -10,6 +10,18 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export interface Database {
   public: {
     Tables: {
+      picker_sync_state: {
+        Row: {
+          user_id: string;
+          revision: number;
+          snapshot: Json;
+          mutation_id: string | null;
+          updated_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       users: {
         Row: {
           id: string;
@@ -107,6 +119,15 @@ export interface Database {
     };
     Views: Record<never, never>;
     Functions: {
+      write_picker_sync: {
+        Args: {
+          expected_user_id: string;
+          expected_revision: number;
+          operation_id: string;
+          new_snapshot: Json;
+        };
+        Returns: Json;
+      };
       set_game_preference: {
         Args: {
           target_appid: number;

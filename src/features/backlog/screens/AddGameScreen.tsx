@@ -73,7 +73,7 @@ export function AddGameScreen({ navigation }: RootStackScreenProps<'AddGame'>) {
       <Text style={[styles.hint, steamInvalid && styles.error]}>
         {steamInvalid
           ? 'Не похоже на ссылку Steam. Нужна ссылка вида store.steampowered.com/app/…'
-          : 'С ней кнопка «Открыть в Steam» сможет открыть игру в Steam'}
+          : 'С ней можно открыть страницу игры в Steam и скопировать ссылку'}
       </Text>
 
       <Text style={styles.label}>Жанры (необязательно)</Text>
@@ -85,11 +85,13 @@ export function AddGameScreen({ navigation }: RootStackScreenProps<'AddGame'>) {
               key={genre}
               onPress={() => toggleGenre(genre)}
               accessibilityRole="checkbox"
+              aria-checked={checked}
               accessibilityState={{ checked }}
               accessibilityLabel={genreLabel(genre)}
               style={[styles.genre, checked && styles.genreChecked]}
             >
               <Text style={[styles.genreText, checked && styles.genreTextChecked]}>
+                {checked ? '✓ ' : ''}
                 {genreLabel(genre)}
               </Text>
             </Pressable>
