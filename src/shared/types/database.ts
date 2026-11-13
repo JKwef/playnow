@@ -63,6 +63,20 @@ export interface Database {
           },
         ];
       };
+      game_preferences: {
+        Row: { user_id: string; appid: number; progress_status: string; excluded: boolean };
+        Insert: { user_id: string; appid: number; progress_status?: string; excluded?: boolean };
+        Update: { progress_status?: string; excluded?: boolean };
+        Relationships: [
+          {
+            foreignKeyName: 'game_preferences_user_id_appid_fkey';
+            columns: ['user_id', 'appid'];
+            isOneToOne: true;
+            referencedRelation: 'games';
+            referencedColumns: ['user_id', 'appid'];
+          },
+        ];
+      };
       play_sessions: {
         Row: {
           id: string;
@@ -92,7 +106,17 @@ export interface Database {
       };
     };
     Views: Record<never, never>;
-    Functions: Record<never, never>;
+    Functions: {
+      set_game_preference: {
+        Args: {
+          target_appid: number;
+          expected_user_id: string;
+          new_status?: string;
+          new_excluded?: boolean;
+        };
+        Returns: { appid: number; progress_status: string; excluded: boolean }[];
+      };
+    };
     Enums: Record<never, never>;
     CompositeTypes: Record<never, never>;
   };

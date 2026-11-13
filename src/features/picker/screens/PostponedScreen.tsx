@@ -1,6 +1,6 @@
 import type { ThemeColors } from '@/shared/constants/colors';
 import { useThemedStyles } from '@/shared/theme/useTheme';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -19,7 +19,21 @@ export function PostponedScreen({ navigation }: RootStackScreenProps<'Postponed'
   const styles = useThemedStyles(createStyles);
 
   const { games } = useBacklog();
-  const { postponed, restore } = useBlacklist();
+  const { postponed, restore, errorMessage, retry } = useBlacklist();
+  const [pending, setPending] = useState<number | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const restoreGame = async (appid: number) => {
+    if (pending !== null) return;
+    setPending(appid);
+    setActionError(null);
+    try {
+      await restore(appid);
+    } catch {
+      setActionError('Не удалось вернуть игру. Попробуйте ещё раз.');
+    } finally {
+      setPending(null);
+    }
+  };
 
   const items = useMemo(() => {
     const byAppid = new Map((games ?? []).map((game) => [game.appid, game]));
@@ -35,18 +49,28 @@ export function PostponedScreen({ navigation }: RootStackScreenProps<'Postponed'
         keyExtractor={(item) => String(item.appid)}
         contentContainerStyle={styles.content}
         ListHeaderComponent={
-          items.length > 0 ? (
-            <Text style={styles.hint}>
-              Эти игры не попадают в подбор до указанной даты. Нажмите «Вернуть», чтобы снова
-              получать их в результатах.
-            </Text>
-          ) : undefined
+          <>
+            {(errorMessage || actionError) && (
+              <Text accessibilityRole="alert" style={styles.hint}>
+                {actionError ?? errorMessage}
+              </Text>
+            )}
+            {errorMessage && (
+              <Button label="Повторить" variant="secondary" onPress={() => void retry()} />
+            )}
+            {items.length > 0 && (
+              <Text style={styles.hint}>
+                Эти игры не попадают в подбор до указанной даты. Нажмите «Вернуть», чтобы снова
+                получать их в результатах.
+              </Text>
+            )}
+          </>
         }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>Отложенных игр нет</Text>
             <Text style={styles.hint}>
-              Нажмите «Отложить» на экране результата, чтобы убрать игру из подбора на 7 дней.
+              На экране результата или в карточке игры выберите «До завтра» или «На неделю».
             </Text>
             <Button label="К подбору" onPress={() => navigation.navigate('Picker')} />
           </View>
@@ -64,9 +88,10 @@ export function PostponedScreen({ navigation }: RootStackScreenProps<'Postponed'
               </View>
               <Button
                 label="Вернуть"
+                disabled={pending !== null}
                 variant="secondary"
                 accessibilityLabel={`Вернуть «${name}» в подбор`}
-                onPress={() => void restore(item.appid)}
+                onPress={() => void restoreGame(item.appid)}
               />
             </Card>
           );

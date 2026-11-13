@@ -30,6 +30,8 @@ jobs:
         run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f supabase/tests/rls.sql
       - name: Concurrent redemption across database connections
         run: python3 scripts/test-redemption.py
+      - name: Game progression, exclusions, import preservation and ownership
+        run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f supabase/tests/preferences.sql
       - name: Complete paginated libraries including manual games
         run: node scripts/test-library.mjs
 

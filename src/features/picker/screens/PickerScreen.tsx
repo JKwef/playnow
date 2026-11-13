@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useBacklog } from '@/features/backlog/hooks/useBacklog';
+import { useGamePreferences } from '@/features/backlog/hooks/useGamePreferences';
+import { isBlockedByPreference } from '@/features/backlog/types/GamePreference';
 import { BacklogStatusNotice } from '@/features/backlog/components/BacklogStatusNotice';
 import type { RootStackScreenProps } from '@/navigation/types';
 import { Button } from '@/shared/components/Button';
@@ -21,7 +23,9 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
 
   const backlog = useBacklog();
   const { games, genresStatus, status } = backlog;
-  const { postponed, isLoading: isBlacklistLoading } = useBlacklist();
+  const blacklist = useBlacklist();
+  const { postponed, isLoading: isBlacklistLoading } = blacklist;
+  const preferences = useGamePreferences();
   const [selection, setSelection] = useState<ContextId | null>(null);
   const counts = useMemo(
     () =>
@@ -29,18 +33,21 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
         PICKER_CONTEXTS.map((context) => [
           context.id,
           (games ?? []).filter(
-            (game) => !postponed.has(game.appid) && matchesContext(game, context),
+            (game) =>
+              !postponed.has(game.appid) &&
+              !isBlockedByPreference(preferences.preferences.get(game.appid)) &&
+              matchesContext(game, context),
           ).length,
         ]),
       ),
-    [games, postponed],
+    [games, postponed, preferences.preferences],
   );
   const selected =
     selection ??
     PICKER_CONTEXTS.find((context) => (counts.get(context.id) ?? 0) > 0)?.id ??
     'short-session';
   const count = counts.get(selected) ?? 0;
-  const loading = status === 'loading' || isBlacklistLoading;
+  const loading = status === 'loading' || isBlacklistLoading || preferences.isLoading;
 
   return (
     <Screen
@@ -48,7 +55,13 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
         <View style={styles.action}>
           <Button
             label={loading ? 'Загружаем игры…' : 'Подобрать игру  →'}
-            disabled={loading || games === undefined || count === 0}
+            disabled={
+              loading ||
+              preferences.isUnavailable ||
+              !!blacklist.errorMessage ||
+              games === undefined ||
+              count === 0
+            }
             onPress={() => navigation.navigate('Result', { contextId: selected })}
           />
           <Text style={styles.hint} accessibilityLiveRegion="polite">
@@ -84,6 +97,34 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
         <Text style={styles.statusTag}>{genresStatus === 'loading' ? 'Жанры…' : 'STEAM'}</Text>
       </View>
       <BacklogStatusNotice backlog={backlog} />
+      {blacklist.errorMessage && (
+        <View style={styles.notice}>
+          <Text accessibilityRole="alert" style={styles.noticeText}>
+            {blacklist.errorMessage}
+          </Text>
+          <Button
+            label="Повторить загрузку отложенных"
+            variant="secondary"
+            onPress={() => void blacklist.retry()}
+          />
+        </View>
+      )}
+      {preferences.isFromCache && (
+        <Text style={styles.subtitle}>Используются сохранённые статусы и исключения.</Text>
+      )}
+      {preferences.loadError && (
+        <View style={styles.notice}>
+          <Text accessibilityRole="alert" style={styles.noticeText}>
+            {preferences.loadError}
+          </Text>
+          <Button
+            label="Повторить загрузку статусов"
+            variant="secondary"
+            disabled={preferences.isRefreshing}
+            onPress={() => void preferences.retry()}
+          />
+        </View>
+      )}
       <Text style={styles.section}>Какой у тебя настрой?</Text>
       <View
         style={styles.grid}

@@ -5,8 +5,7 @@ import { StyleSheet, Text } from 'react-native';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useLaunchGame } from '@/features/launch/hooks/useLaunchGame';
-import { useBlacklist } from '@/features/picker/hooks/useBlacklist';
-import { formatPostponedUntil } from '@/features/picker/utils/postponed';
+import { PostponeControls } from '@/features/picker/components/PostponeControls';
 import type { RootStackScreenProps } from '@/navigation/types';
 import { Button } from '@/shared/components/Button';
 import { LoadingIndicator } from '@/shared/components/LoadingIndicator';
@@ -18,6 +17,7 @@ import { BacklogErrorView } from '../components/BacklogErrorView';
 import { GameCover } from '../components/GameCover';
 import { GenreChips } from '../components/GenreChips';
 import { GenreEditor } from '../components/GenreEditor';
+import { GamePreferenceControls } from '../components/GamePreferenceControls';
 import { useBacklog } from '../hooks/useBacklog';
 import { isManualAppId } from '../utils/manualGame';
 
@@ -33,7 +33,6 @@ export function GameDetailsScreen({ route, navigation }: RootStackScreenProps<'G
   const signOut = useAuth((state) => state.signOut);
   const game = games?.find((item) => item.appid === route.params.appid);
   const { launch, isLaunching } = useLaunchGame();
-  const { postponed, restore } = useBlacklist();
 
   useLayoutEffect(() => {
     if (game) navigation.setOptions({ title: game.name });
@@ -71,7 +70,6 @@ export function GameDetailsScreen({ route, navigation }: RootStackScreenProps<'G
   }
 
   const manual = isManualAppId(game.appid);
-  const postponedUntil = postponed.get(game.appid);
 
   return (
     <Screen>
@@ -85,6 +83,7 @@ export function GameDetailsScreen({ route, navigation }: RootStackScreenProps<'G
       )}
       <GenreChips genres={game.genres} />
       <GenreEditor key={game.appid} game={game} />
+      <GamePreferenceControls key={`preferences-${game.appid}`} appid={game.appid} />
       <Button
         label={isLaunching ? 'Открываем Steam…' : 'Открыть в Steam'}
         accessibilityHint="Откроет Steam с этой игрой"
@@ -96,16 +95,7 @@ export function GameDetailsScreen({ route, navigation }: RootStackScreenProps<'G
           Игра добавлена вручную без Steam, поэтому открыть её в Steam нельзя.
         </Text>
       )}
-      {postponedUntil !== undefined && (
-        <>
-          <Text style={styles.note}>{formatPostponedUntil(postponedUntil)}</Text>
-          <Button
-            label="Вернуть в подбор"
-            variant="tertiary"
-            onPress={() => void restore(game.appid)}
-          />
-        </>
-      )}
+      <PostponeControls key={`postpone-${game.appid}`} appid={game.appid} />
     </Screen>
   );
 }

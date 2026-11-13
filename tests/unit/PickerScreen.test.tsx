@@ -19,9 +19,21 @@ const mockBacklog = {
   isRefreshing: false,
 };
 const mockBlacklist = { postponed: new Map([[1, Date.now() + 86_400_000]]), isLoading: false };
+const mockPreferences = {
+  preferences: new Map(),
+  isLoading: false,
+  isUnavailable: false,
+  isFromCache: false,
+  loadError: null,
+  isRefreshing: false,
+  retry: jest.fn(),
+};
 
 jest.mock('@/features/backlog/hooks/useBacklog', () => ({ useBacklog: () => mockBacklog }));
 jest.mock('@/features/picker/hooks/useBlacklist', () => ({ useBlacklist: () => mockBlacklist }));
+jest.mock('@/features/backlog/hooks/useGamePreferences', () => ({
+  useGamePreferences: () => mockPreferences,
+}));
 jest.mock('@/shared/components/Screen', () => ({
   Screen: ({ children, footer }: { children: ReactNode; footer: ReactNode }) => (
     <>
@@ -58,4 +70,12 @@ it('disables selection submission when the chosen mood has no candidates', async
   ).toBe(true);
   expect(screen.getByText(/Пока нет подходящих игр/)).toBeTruthy();
   expect(screen.navigate).not.toHaveBeenCalled();
+});
+
+it('counts exclude completed and permanently excluded games without removing library records', async () => {
+  mockPreferences.preferences = new Map([[2, { progressStatus: 'completed', excluded: false }]]);
+  const screen = await renderPicker();
+  expect(screen.getByRole('radio', { name: /Больше драйва.*Доступно игр: 0/ })).toBeTruthy();
+  expect(mockBacklog.games).toHaveLength(3);
+  mockPreferences.preferences = new Map();
 });

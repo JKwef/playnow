@@ -1,4 +1,8 @@
 import type { Game } from '@/features/backlog/types/Game';
+import {
+  isBlockedByPreference,
+  type GamePreferences,
+} from '@/features/backlog/types/GamePreference';
 
 import type { PickerContext } from '../types';
 
@@ -12,6 +16,7 @@ export interface PickOptions {
   exclude: ReadonlySet<number>;
   /** Источник случайности [0, 1). В приложении — seededRandom, в тестах — фиксированный. */
   random: () => number;
+  preferences?: GamePreferences;
 }
 
 /** Подходит ли игра под контекст: хотя бы один жанр контекста и (если задано) лимит времени. */
@@ -34,10 +39,13 @@ export const priorityOf = (game: Game): number => {
 export const rankCandidates = (
   games: readonly Game[],
   context: PickerContext,
-  { exclude, random }: PickOptions,
+  { exclude, random, preferences }: PickOptions,
 ): Game[] => {
   const candidates = games.filter(
-    (game) => !exclude.has(game.appid) && matchesContext(game, context),
+    (game) =>
+      !exclude.has(game.appid) &&
+      !isBlockedByPreference(preferences?.get(game.appid)) &&
+      matchesContext(game, context),
   );
   for (let i = candidates.length - 1; i > 0; i -= 1) {
     const j = Math.floor(random() * (i + 1));

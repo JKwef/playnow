@@ -16,7 +16,8 @@ import { fontSize } from '@/shared/constants';
 
 import { GameResult } from '../components/GameResult';
 import { useGamePicker } from '../hooks/useGamePicker';
-import { POSTPONE_DAYS } from '../services/blacklist';
+import { useBlacklist } from '../hooks/useBlacklist';
+import type { PostponeDuration } from '../services/blacklist';
 import type { PickerContext } from '../types';
 import { findContext } from '../utils/contexts';
 
@@ -56,10 +57,20 @@ function PickedGame({ context, onBack, onOpenPostponed }: PickedGameProps) {
   const styles = useThemedStyles(createStyles);
 
   const [isPostponing, setIsPostponing] = useState(false);
+  const [lastPostponed, setLastPostponed] = useState<{
+    appid: number;
+    name: string;
+    steamId: string | null;
+  } | null>(null);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+  const steamId = useAuth((state) => state.user?.steamId ?? null);
+  const { restore } = useBlacklist();
   const {
     status,
     game,
     postponedCount,
+    excludedCount,
+    actionError,
     next,
     postpone,
     isLastOption,
@@ -70,6 +81,53 @@ function PickedGame({ context, onBack, onOpenPostponed }: PickedGameProps) {
   } = useGamePicker(context);
   const { launch, isLaunching } = useLaunchGame();
   const signOut = useAuth((state) => state.signOut);
+  const postponeGame = async (duration: PostponeDuration) => {
+    if (!game || isPostponing) return;
+    const selectedGame = game;
+    setIsPostponing(true);
+    setRestoreError(null);
+    try {
+      if (await postpone(duration))
+        setLastPostponed({ appid: selectedGame.appid, name: selectedGame.name, steamId });
+    } finally {
+      setIsPostponing(false);
+    }
+  };
+  const undoPostpone = async () => {
+    if (!lastPostponed || isPostponing || lastPostponed.steamId !== steamId) return;
+    setIsPostponing(true);
+    setRestoreError(null);
+    try {
+      await restore(lastPostponed.appid);
+      setLastPostponed(null);
+    } catch {
+      setRestoreError('Не удалось отменить откладывание. Попробуйте ещё раз.');
+    } finally {
+      setIsPostponing(false);
+    }
+  };
+  const feedback = (
+    <>
+      {lastPostponed && lastPostponed.steamId === steamId && (
+        <>
+          <Text accessibilityLiveRegion="polite" style={styles.note}>
+            «{lastPostponed.name}» отложена
+          </Text>
+          <Button
+            label="Отменить откладывание"
+            variant="secondary"
+            disabled={isPostponing}
+            onPress={() => void undoPostpone()}
+          />
+        </>
+      )}
+      {(actionError || restoreError) && (
+        <Text accessibilityRole="alert" style={styles.error}>
+          {restoreError ?? actionError}
+        </Text>
+      )}
+    </>
+  );
 
   // Бэклог не загрузился: не крутим спиннер вечно, объясняем причину и даём выход.
   if (status === 'error') {
@@ -103,7 +161,11 @@ function PickedGame({ context, onBack, onOpenPostponed }: PickedGameProps) {
             ? ` и временем в игре меньше ${context.maxPlaytimeMinutes} мин`
             : ''}
           .{postponedCount > 0 ? ` Отложено игр: ${postponedCount}.` : ''}
+          {excludedCount > 0
+            ? ` Пройдено или исключено: ${excludedCount}. Вернуть игры можно из их карточек в библиотеке.`
+            : ''}
         </Text>
+        {feedback}
         <Button label="Выбрать другой контекст" onPress={onBack} />
         {postponedCount > 0 && (
           <Button label="Отложенные игры" variant="tertiary" onPress={onOpenPostponed} />
@@ -132,16 +194,20 @@ function PickedGame({ context, onBack, onOpenPostponed }: PickedGameProps) {
         accessibilityHint="Подберёт другую игру под этот контекст"
         onPress={next}
       />
+      <Text style={styles.note}>Не сейчас · отложить на этом устройстве</Text>
       <Button
-        label={isPostponing ? 'Откладываем…' : 'Не сейчас · отложить на 7 дней'}
+        label="До завтра"
         variant="tertiary"
         disabled={isPostponing}
-        accessibilityHint={`Не предлагать эту игру ${POSTPONE_DAYS} дней`}
-        onPress={() => {
-          setIsPostponing(true);
-          void postpone().finally(() => setIsPostponing(false));
-        }}
+        onPress={() => void postponeGame('tomorrow')}
       />
+      <Button
+        label="На неделю"
+        variant="tertiary"
+        disabled={isPostponing}
+        onPress={() => void postponeGame('week')}
+      />
+      {feedback}
       {isLastOption && <Text style={styles.note}>Это единственная подходящая игра</Text>}
       {manual && (
         <Text style={styles.note}>Игра добавлена вручную, поэтому открыть её в Steam нельзя</Text>
@@ -161,4 +227,5 @@ const createStyles = (colors: ThemeColors) =>
     secondary: { color: colors.textSecondary, fontSize: fontSize.body, textAlign: 'center' },
     context: { color: colors.secondary, fontSize: fontSize.body, fontWeight: '600' },
     note: { color: colors.textSecondary, fontSize: fontSize.caption + 2, textAlign: 'center' },
+    error: { color: colors.error, fontSize: fontSize.caption + 2 },
   });

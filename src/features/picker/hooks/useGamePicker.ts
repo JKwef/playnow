@@ -1,10 +1,12 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import { useBacklog } from '@/features/backlog/hooks/useBacklog';
+import { useGamePreferences } from '@/features/backlog/hooks/useGamePreferences';
+import { isBlockedByPreference } from '@/features/backlog/types/GamePreference';
 import type { BacklogErrorCode, Game } from '@/features/backlog/types/Game';
 import { newSeed, seededRandom } from '@/shared/utils/random';
 
-import type { BlacklistService } from '../services/blacklist';
+import type { BlacklistService, PostponeDuration } from '../services/blacklist';
 import type { PickerContext } from '../types';
 import { pickGame } from '../utils/pickGame';
 import { useBlacklist } from './useBlacklist';
@@ -24,10 +26,12 @@ export interface UseGamePickerResult {
   game: Game | null;
   /** Сколько игр отложено (чтобы объяснить пустой результат). */
   postponedCount: number;
+  excludedCount: number;
   /** «Другой вариант»: новая игра, не показанная в этой серии (FR4.3). */
   next: () => void;
-  /** «Отложить»: игра уходит в чёрный список на 7 дней, сразу подбирается следующая. */
-  postpone: () => Promise<void>;
+  /** После подтверждённого откладывания подбирается следующая игра. */
+  postpone: (duration?: PostponeDuration) => Promise<boolean>;
+  actionError: string | null;
   /** true, если других подходящих игр больше нет и «Другой вариант» вернёт ту же. */
   isLastOption: boolean;
   /** Ошибка загрузки бэклога (код и текст для BacklogErrorView). */
@@ -50,11 +54,13 @@ export const useGamePicker = (
 ): UseGamePickerResult => {
   const backlog = useBacklog();
   const { games } = backlog;
+  const preferences = useGamePreferences();
   const blacklist = useBlacklist(blacklistService);
   const postponed = blacklist.postponed;
   const [seed, setSeed] = useState(newSeed);
   /** Показанные в этой серии игры: «Другой вариант» не возвращается к ним. */
   const [shown, setShown] = useState<readonly number[]>([]);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const pickWith = useCallback(
     (exclude: readonly number[], pickSeed: number): Game | null =>
@@ -63,8 +69,9 @@ export const useGamePicker = (
         : pickGame(games, context, {
             exclude: new Set([...postponed.keys(), ...exclude]),
             random: seededRandom(pickSeed),
+            preferences: preferences.preferences,
           }),
-    [games, context, postponed],
+    [games, context, postponed, preferences.preferences],
   );
 
   const game = useMemo(() => pickWith(shown, seed), [pickWith, shown, seed]);
@@ -84,33 +91,48 @@ export const useGamePicker = (
   }, [game, hasOther, shown, pickWith]);
 
   const { postpone: addToBlacklist } = blacklist;
-  const postpone = useCallback(async () => {
-    if (game === null) return;
-    try {
-      await addToBlacklist(game.appid);
-    } catch (error) {
-      // Не смогли записать — хотя бы уберём игру из текущей серии.
-      console.warn('blacklist write failed', error);
-      setShown((current) => [...current, game.appid]);
-    }
-    setSeed(newSeed());
-  }, [game, addToBlacklist]);
+  const postpone = useCallback(
+    async (duration?: PostponeDuration) => {
+      if (game === null) return false;
+      setActionError(null);
+      try {
+        await addToBlacklist(game.appid, duration);
+      } catch {
+        setActionError('Не удалось отложить игру. Попробуйте ещё раз.');
+        return false;
+      }
+      setSeed(newSeed());
+      return true;
+    },
+    [game, addToBlacklist],
+  );
 
   let status: PickerStatus = 'ready';
   if (backlog.status === 'error') status = 'error';
-  else if (games === undefined || blacklist.isLoading) status = 'loading';
+  else if (preferences.isUnavailable || blacklist.errorMessage) status = 'error';
+  else if (games === undefined || blacklist.isLoading || preferences.isLoading) status = 'loading';
   else if (game === null) status = 'empty';
 
   return {
     status,
     game,
     postponedCount: postponed.size,
+    excludedCount: (games ?? []).filter((item) =>
+      isBlockedByPreference(preferences.preferences.get(item.appid)),
+    ).length,
     next,
     postpone,
+    actionError,
     isLastOption: game !== null && !hasOther,
-    errorCode: backlog.errorCode,
-    errorMessage: backlog.errorMessage,
-    isRetrying: backlog.isRefreshing,
-    refresh: backlog.refresh,
+    errorCode: preferences.isUnavailable || blacklist.errorMessage ? 'server' : backlog.errorCode,
+    errorMessage: preferences.isUnavailable
+      ? preferences.loadError
+      : (blacklist.errorMessage ?? backlog.errorMessage),
+    isRetrying: backlog.isRefreshing || preferences.isRefreshing,
+    refresh: preferences.isUnavailable
+      ? preferences.retry
+      : blacklist.errorMessage
+        ? blacklist.retry
+        : backlog.refresh,
   };
 };
