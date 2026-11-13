@@ -44,14 +44,16 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tests",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "jest",
     "test:ci": "jest --ci",
-    "validate": "npm run typecheck && npm run lint && npm run format:check"
+    "validate": "npm run typecheck && npm run lint && npm run format:check && npm run test:ci",
+    "test:coverage": "jest --coverage",
+    "test:functions": "deno test supabase/functions/"
   },
   "jest": {
     "preset": "jest-expo",
@@ -62,7 +64,33 @@
       "/node_modules/",
       "/supabase/functions/",
       "/\\.tools/"
-    ]
+    ],
+    "roots": [
+      "<rootDir>/tests/unit"
+    ],
+    "testMatch": [
+      "**/*.test.ts?(x)"
+    ],
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/src/$1",
+      "^@react-native-async-storage/async-storage$": "@react-native-async-storage/async-storage/jest/async-storage-mock"
+    },
+    "collectCoverageFrom": [
+      "src/features/*/services/**/*.ts",
+      "src/features/*/utils/**/*.ts",
+      "src/features/auth/hooks/useAuth.ts",
+      "src/shared/{config,services,utils}/**/*.ts",
+      "!src/**/default*.ts",
+      "!src/shared/services/supabase.ts"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "statements": 80,
+        "branches": 80,
+        "functions": 80,
+        "lines": 80
+      }
+    }
   },
   "private": true
 }
