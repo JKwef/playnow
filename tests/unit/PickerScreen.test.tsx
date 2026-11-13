@@ -104,3 +104,32 @@ it('counts exclude completed and permanently excluded games without removing lib
   expect(mockBacklog.games).toHaveLength(3);
   mockPreferences.preferences = new Map();
 });
+
+it('restores the accepted choice on home; another pick does not overwrite it; missing games and account switch are safe', async () => {
+  const stored = JSON.stringify({
+    game: { appid: 3, name: 'Сохранённая игра' },
+    contextId: 'short-session',
+    mode: 'new',
+    genreFilter: 'context',
+    acceptedAt: '2026-11-13T12:00:00Z',
+  });
+  await AsyncStorage.setItem('playnow:acceptedChoice:v1:76561197960287930', stored);
+  const screen = await renderPicker();
+  await waitFor(() => expect(screen.getByText('Последний принятый выбор')).toBeTruthy());
+  await fireEvent.press(screen.getByRole('button', { name: 'Подобрать другое' }));
+  expect(screen.navigate).toHaveBeenCalledWith('Result', expect.objectContaining({ mode: 'new' }));
+  expect(await AsyncStorage.getItem('playnow:acceptedChoice:v1:76561197960287930')).toBe(stored);
+  const previousGames = mockBacklog.games;
+  mockBacklog.games = [];
+  await screen.rerender(
+    <PickerScreen
+      navigation={{ navigate: screen.navigate } as never}
+      route={{ key: 'picker', name: 'Picker' }}
+    />,
+  );
+  expect(screen.getByText(/Выбранной игры больше нет/)).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Открыть' })).toBeNull();
+  useAuth.setState({ user: { steamId: 'B' }, status: 'signedIn' });
+  await waitFor(() => expect(screen.queryByText('Последний принятый выбор')).toBeNull());
+  mockBacklog.games = previousGames;
+});

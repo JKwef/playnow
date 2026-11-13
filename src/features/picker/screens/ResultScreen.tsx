@@ -6,8 +6,8 @@ import { StyleSheet, Text } from 'react-native';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { BacklogErrorView } from '@/features/backlog/components/BacklogErrorView';
 import { genreLabel } from '@/features/backlog/utils/genres';
-import { isManualAppId } from '@/features/backlog/utils/manualGame';
-import { useLaunchGame } from '@/features/launch/hooks/useLaunchGame';
+import { SteamActions } from '@/features/launch/components/SteamActions';
+import { useAcceptedChoice } from '../hooks/useAcceptedChoice';
 import type { RootStackScreenProps } from '@/navigation/types';
 import { Button } from '@/shared/components/Button';
 import { LoadingIndicator } from '@/shared/components/LoadingIndicator';
@@ -118,7 +118,7 @@ function PickedGame({
     retryMetadata,
     isRetryingMetadata,
   } = useGamePicker(context, { mode, ignoreGenres });
-  const { launch, isLaunching } = useLaunchGame();
+  const accepted = useAcceptedChoice();
   const signOut = useAuth((state) => state.signOut);
   const postponeGame = async (duration: PostponeDuration) => {
     if (!game || isPostponing) return;
@@ -258,7 +258,6 @@ function PickedGame({
     );
   }
 
-  const manual = isManualAppId(game.appid);
   return (
     <Screen>
       <Text style={styles.context}>
@@ -278,11 +277,40 @@ function PickedGame({
       )}
       <GameResult game={game} reasons={reasons} />
       <Button
-        label={isLaunching ? 'Открываем Steam…' : 'Открыть в Steam'}
-        accessibilityHint="Откроет Steam с этой игрой"
-        disabled={manual || isLaunching}
-        onPress={() => void launch(game.appid)}
+        label={accepted.isSaving ? 'Сохраняем выбор…' : 'Выбираю эту игру'}
+        disabled={!accepted.isReady || accepted.isSaving}
+        onPress={() =>
+          void accepted.accept({
+            game: { appid: game.appid, name: game.name },
+            contextId: context.id,
+            mode,
+            genreFilter: ignoreGenres ? 'any' : 'context',
+          })
+        }
       />
+      {accepted.choice && (
+        <Text accessibilityLiveRegion="polite" style={styles.note}>
+          Выбор сохранён на этом устройстве: «{accepted.choice.game.name}». Можно вернуться к нему
+          на главном экране.
+        </Text>
+      )}
+      {accepted.canUndo && (
+        <Button
+          label="Отменить принятие выбора"
+          variant="tertiary"
+          disabled={accepted.isSaving}
+          onPress={() => void accepted.undo()}
+        />
+      )}
+      {accepted.error && (
+        <Text accessibilityRole="alert" style={styles.error}>
+          {accepted.error}
+        </Text>
+      )}
+      {!accepted.isReady && accepted.error && (
+        <Button label="Повторить загрузку выбора" onPress={accepted.retry} />
+      )}
+      <SteamActions key={game.appid} appid={game.appid} />
       <Button
         label={isSeriesExhausted ? 'Начать новый круг' : 'Показать другую игру'}
         variant="secondary"
@@ -314,9 +342,6 @@ function PickedGame({
         </Text>
       )}
       {isLastOption && <Text style={styles.note}>Это единственная подходящая игра</Text>}
-      {manual && (
-        <Text style={styles.note}>Игра добавлена вручную, поэтому открыть её в Steam нельзя</Text>
-      )}
     </Screen>
   );
 }

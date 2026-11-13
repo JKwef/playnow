@@ -27,10 +27,10 @@ test('launcher: not installed and manual game', async () => {
       ),
     LaunchError,
   );
-  assertEquals((e as LaunchError).code, 'steam_not_installed');
+  assertEquals((e as LaunchError).code, 'open_failed');
   assertEquals(
-    LAUNCH_ERROR_MESSAGES.steam_not_installed,
-    'Steam не установлен. Установите Steam и попробуйте снова',
+    LAUNCH_ERROR_MESSAGES.open_failed,
+    'Не удалось открыть ссылку. Попробуйте страницу Steam или скопируйте ссылку.',
   );
   let called = false;
   const m = await assertRejects(

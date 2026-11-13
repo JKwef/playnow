@@ -12,6 +12,7 @@ import { Screen } from '@/shared/components/Screen';
 import { spacing } from '@/shared/constants';
 
 import { ContextCard } from '../components/ContextCard';
+import { LastAcceptedChoice } from '../components/LastAcceptedChoice';
 import { useBlacklist } from '../hooks/useBlacklist';
 import { usePickerSelection } from '../hooks/usePickerSelection';
 import { PICKER_MODE_LABELS, type PickerMode } from '../types';
@@ -85,6 +86,13 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
         </Text>
         <Text style={styles.subtitle}>Выбери настроение. Остальное — за Quaeso.</Text>
       </View>
+      <LastAcceptedChoice
+        games={games}
+        canPickAnother={settings.isReady}
+        onPickAnother={() =>
+          navigation.navigate('Result', { contextId: selected, mode, genreFilter: 'context' })
+        }
+      />
       <View style={styles.modes} accessibilityRole="radiogroup" accessibilityLabel="Режим подбора">
         {(['new', 'continue'] as const).map((value: PickerMode) => (
           <Pressable

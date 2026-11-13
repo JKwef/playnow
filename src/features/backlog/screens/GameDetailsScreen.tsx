@@ -4,7 +4,7 @@ import { useLayoutEffect } from 'react';
 import { StyleSheet, Text } from 'react-native';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { useLaunchGame } from '@/features/launch/hooks/useLaunchGame';
+import { SteamActions } from '@/features/launch/components/SteamActions';
 import { PostponeControls } from '@/features/picker/components/PostponeControls';
 import type { RootStackScreenProps } from '@/navigation/types';
 import { Button } from '@/shared/components/Button';
@@ -19,7 +19,6 @@ import { GenreChips } from '../components/GenreChips';
 import { GenreEditor } from '../components/GenreEditor';
 import { GamePreferenceControls } from '../components/GamePreferenceControls';
 import { useBacklog } from '../hooks/useBacklog';
-import { isManualAppId } from '../utils/manualGame';
 
 /** Сообщение, если код ошибки не пришёл (неожиданный сбой). */
 const FALLBACK_ERROR = 'Не удалось загрузить игру';
@@ -32,7 +31,6 @@ export function GameDetailsScreen({ route, navigation }: RootStackScreenProps<'G
   const { games, status } = backlog;
   const signOut = useAuth((state) => state.signOut);
   const game = games?.find((item) => item.appid === route.params.appid);
-  const { launch, isLaunching } = useLaunchGame();
 
   useLayoutEffect(() => {
     if (game) navigation.setOptions({ title: game.name });
@@ -69,8 +67,6 @@ export function GameDetailsScreen({ route, navigation }: RootStackScreenProps<'G
     );
   }
 
-  const manual = isManualAppId(game.appid);
-
   return (
     <Screen>
       <GameCover name={game.name} uri={game.coverUrl} style={styles.cover} />
@@ -84,17 +80,7 @@ export function GameDetailsScreen({ route, navigation }: RootStackScreenProps<'G
       <GenreChips genres={game.genres} />
       <GenreEditor key={game.appid} game={game} />
       <GamePreferenceControls key={`preferences-${game.appid}`} appid={game.appid} />
-      <Button
-        label={isLaunching ? 'Открываем Steam…' : 'Открыть в Steam'}
-        accessibilityHint="Откроет Steam с этой игрой"
-        disabled={manual || isLaunching}
-        onPress={() => void launch(game.appid)}
-      />
-      {manual && (
-        <Text style={styles.note}>
-          Игра добавлена вручную без Steam, поэтому открыть её в Steam нельзя.
-        </Text>
-      )}
+      <SteamActions key={game.appid} appid={game.appid} />
       <PostponeControls key={`postpone-${game.appid}`} appid={game.appid} />
     </Screen>
   );

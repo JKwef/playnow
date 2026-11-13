@@ -1,4 +1,7 @@
-import { fireEvent, render } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Linking } from 'react-native';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
 import { ResultScreen } from '@/features/picker/screens/ResultScreen';
@@ -33,13 +36,6 @@ jest.mock('@/features/picker/hooks/useGamePicker', () => ({ useGamePicker: () =>
 jest.mock('@/features/picker/hooks/useBlacklist', () => ({
   useBlacklist: () => ({ restore: mockRestore }),
 }));
-jest.mock('@/features/auth/hooks/useAuth', () => ({
-  useAuth: (select: (state: unknown) => unknown) =>
-    select({ user: { steamId: 'A' }, signOut: jest.fn() }),
-}));
-jest.mock('@/features/launch/hooks/useLaunchGame', () => ({
-  useLaunchGame: () => ({ launch: jest.fn(), isLaunching: false }),
-}));
 jest.mock('@/shared/components/Screen', () => ({
   Screen: ({ children }: { children: ReactNode }) => children,
 }));
@@ -48,7 +44,10 @@ const props = {
   route: { params: { contextId: 'action' } },
   navigation: { goBack: jest.fn(), navigate: jest.fn(), replace: jest.fn() },
 } as unknown as RootStackScreenProps<'Result'>;
-beforeEach(() => {
+beforeEach(async () => {
+  useAuth.setState({ user: null, status: 'signedOut' });
+  await AsyncStorage.clear();
+  useAuth.setState({ user: { steamId: 'A' }, status: 'signedIn' });
   jest.clearAllMocks();
   mockPicker.status = 'ready';
   mockPicker.game = mockGame;
@@ -137,4 +136,35 @@ test('invalid deep-link conditions are rejected instead of silently choosing ano
     />,
   );
   expect(screen.getByText('Неизвестные условия подбора')).toBeTruthy();
+});
+
+afterEach(() => useAuth.setState({ user: null, status: 'signedOut' }));
+
+test('acceptance persists separately from browsing and undo restores the previous choice', async () => {
+  const screen = await render(<ResultScreen {...props} />);
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: 'Выбираю эту игру' }).props.accessibilityState.disabled,
+    ).toBe(false),
+  );
+  expect(await AsyncStorage.getItem('playnow:acceptedChoice:v1:A')).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'Выбираю эту игру' }));
+  const stored = await AsyncStorage.getItem('playnow:acceptedChoice:v1:A');
+  expect(JSON.parse(stored!).game.name).toBe('Последняя игра');
+  const open = jest.spyOn(Linking, 'openURL').mockRejectedValueOnce(new Error('Cannot open'));
+  await fireEvent.press(screen.getByRole('button', { name: 'Открыть страницу Steam' }));
+  expect(screen.getByText(/Не удалось открыть ссылку/)).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Скопировать ссылку' })).toBeTruthy();
+  expect(await AsyncStorage.getItem('playnow:acceptedChoice:v1:A')).toBe(stored);
+  open.mockRestore();
+  mockPicker.game = makeGame({ appid: 42, name: 'Другая рекомендация', genres: ['action'] });
+  await screen.rerender(<ResultScreen {...props} />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Показать другую игру' }));
+  expect(await AsyncStorage.getItem('playnow:acceptedChoice:v1:A')).toBe(stored);
+  await fireEvent.press(screen.getByRole('button', { name: 'Выбираю эту игру' }));
+  expect(JSON.parse((await AsyncStorage.getItem('playnow:acceptedChoice:v1:A'))!).game.appid).toBe(
+    42,
+  );
+  await fireEvent.press(screen.getByRole('button', { name: 'Отменить принятие выбора' }));
+  expect(await AsyncStorage.getItem('playnow:acceptedChoice:v1:A')).toBe(stored);
 });
