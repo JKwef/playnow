@@ -1,3 +1,4 @@
+import { useThemeColors } from '@/shared/theme/useTheme';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useEffect } from 'react';
 
@@ -11,7 +12,8 @@ import { PostponedScreen } from '@/features/picker/screens/PostponedScreen';
 import { ResultScreen } from '@/features/picker/screens/ResultScreen';
 import { SettingsScreen } from '@/features/settings/screens/SettingsScreen';
 import { LoadingIndicator } from '@/shared/components/LoadingIndicator';
-import { colors } from '@/shared/constants';
+import { BrandHeader } from '@/shared/components/BrandLogo';
+
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
 import type { RootStackParamList } from './types';
@@ -32,6 +34,8 @@ declare module '@react-navigation/core' {
  * не вернёт на экран входа (и наоборот). Это рекомендованный паттерн auth flow.
  */
 export function RootNavigator() {
+  const colors = useThemeColors();
+
   const status = useAuth((state) => state.status);
   const restoreSession = useAuth((state) => state.restoreSession);
 
@@ -48,7 +52,8 @@ export function RootNavigator() {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: colors.surface },
+        headerStyle: { backgroundColor: colors.background },
+        headerShadowVisible: false,
         headerTintColor: colors.textPrimary,
         contentStyle: { backgroundColor: colors.background },
         headerBackButtonDisplayMode: 'minimal',
@@ -64,9 +69,17 @@ export function RootNavigator() {
             component={BacklogLoadingScreen}
             options={{ headerShown: false, gestureEnabled: false }}
           />
-          <Stack.Screen name="Picker" component={PickerScreen} options={{ title: 'PlayNow' }} />
+          <Stack.Screen
+            name="Picker"
+            component={PickerScreen}
+            options={{ title: 'Quaeso', headerTitle: () => <BrandHeader /> }}
+          />
           <Stack.Screen name="Result" component={ResultScreen} options={{ title: 'Ваша игра' }} />
-          <Stack.Screen name="Backlog" component={BacklogScreen} options={{ title: 'Мои игры' }} />
+          <Stack.Screen
+            name="Backlog"
+            component={BacklogScreen}
+            options={{ title: 'Библиотека' }}
+          />
           <Stack.Screen
             name="GameDetails"
             component={GameDetailsScreen}

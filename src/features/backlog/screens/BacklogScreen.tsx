@@ -1,13 +1,18 @@
+import type { ThemeColors } from '@/shared/constants/colors';
+import { useThemedStyles } from '@/shared/theme/useTheme';
 import { useCallback, useLayoutEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import type { RootStackScreenProps } from '@/navigation/types';
 import { Button } from '@/shared/components/Button';
 import { LoadingIndicator } from '@/shared/components/LoadingIndicator';
-import { colors, fontSize, spacing } from '@/shared/constants';
+import { Screen } from '@/shared/components/Screen';
+import { fontSize, spacing } from '@/shared/constants';
 import { formatDateTime } from '@/shared/utils/format';
 
+import { BacklogErrorView } from '../components/BacklogErrorView';
 import { BacklogToolbar } from '../components/BacklogToolbar';
 import { GameList } from '../components/GameList';
 import { useBacklog } from '../hooks/useBacklog';
@@ -16,16 +21,22 @@ import type { Game } from '../types/Game';
 
 const NO_GAMES: readonly Game[] = [];
 
+/** Сообщение, если код ошибки не пришёл (неожиданный сбой). */
+const FALLBACK_ERROR = 'Не удалось загрузить список игр';
+
 /** Список игр (FR3): поиск, фильтр по жанрам, сортировка, переход к деталям, обновление. */
 export function BacklogScreen({ navigation }: RootStackScreenProps<'Backlog'>) {
+  const styles = useThemedStyles(createStyles);
+
   const backlog = useBacklog();
+  const signOut = useAuth((state) => state.signOut);
   const filters = useGameFilters(backlog.games ?? NO_GAMES);
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
         <Button
-          label="＋"
+          label="＋ Добавить"
           variant="tertiary"
           accessibilityLabel="Добавить игру вручную"
           onPress={() => navigation.navigate('AddGame')}
@@ -40,6 +51,21 @@ export function BacklogScreen({ navigation }: RootStackScreenProps<'Backlog'>) {
   );
 
   if (backlog.games === undefined) {
+    // Ошибка импорта не должна оставлять пользователя на вечном спиннере:
+    // показываем причину, повтор и выход из аккаунта.
+    if (backlog.status === 'error') {
+      return (
+        <Screen centered>
+          <BacklogErrorView
+            code={backlog.errorCode ?? 'server'}
+            message={backlog.errorMessage ?? FALLBACK_ERROR}
+            isRetrying={backlog.isRefreshing}
+            onRetry={() => void backlog.refresh()}
+            onSignOut={() => void signOut()}
+          />
+        </Screen>
+      );
+    }
     return <LoadingIndicator fullScreen label="Загружаем игры" />;
   }
 
@@ -103,16 +129,17 @@ export function BacklogScreen({ navigation }: RootStackScreenProps<'Backlog'>) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  status: { paddingHorizontal: spacing.sm, paddingTop: spacing.xs, gap: 4 },
-  meta: { color: colors.textSecondary, fontSize: fontSize.caption + 2 },
-  error: { color: colors.error, fontSize: fontSize.caption + 2 },
-  empty: { flex: 1, justifyContent: 'center', gap: spacing.sm, paddingVertical: spacing.lg },
-  emptyTitle: {
-    color: colors.textPrimary,
-    fontSize: fontSize.subtitle,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    status: { paddingHorizontal: spacing.sm, paddingTop: spacing.xs, gap: 4 },
+    meta: { color: colors.textSecondary, fontSize: fontSize.caption + 2 },
+    error: { color: colors.error, fontSize: fontSize.caption + 2 },
+    empty: { flex: 1, justifyContent: 'center', gap: spacing.sm, paddingVertical: spacing.lg },
+    emptyTitle: {
+      color: colors.textPrimary,
+      fontSize: fontSize.subtitle,
+      fontWeight: '700',
+      textAlign: 'center',
+    },
+  });

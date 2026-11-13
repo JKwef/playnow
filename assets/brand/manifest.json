@@ -1,0 +1,17 @@
+{
+  "brand": "Quaeso",
+  "source": "quaeso-original.png",
+  "tool": "built-in image_gen",
+  "assets": [
+    {
+      "file": "quaeso-logo.png",
+      "purpose": "Full logo on a light panel in the dark interface",
+      "prompt": "Use case: background-extraction. Edit target: attached Quaeso logo. Prepare production asset: extract the exact entire existing QUAESO logo with the large black Q, mint green offset outlines, mint play triangle, pixel art caped character and mint steps in its counter. Preserve original design, spelling, shapes, relative positions, colors. Remove the white outside background and enormous surrounding blank margins. Keep intentional white letter fills and white Q counter as white. Tight rectangular landscape canvas around entire logo with only a small uniform transparent margin. Do not redesign, do not add elements. Output one transparent PNG logo."
+    },
+    {
+      "file": "quaeso-icon.png",
+      "purpose": "Adapted Q mark for app icon, splash and compact header",
+      "prompt": "Use case: logo-brand existing logo adaptation for mobile icon. Reference image is user's existing Quaeso logo. Produce a square mobile app icon 1024x1024. Only the large black Q symbol from left of logo, mint green offset edge on its top and left and mint Play triangle tail bottom right, same tiny pixel art brown haired hero wearing red cape and gray outfit on ascending mint steps inside white circular Q counter. Remove all U A E S O lettering; restore smooth uninterrupted circular right side of Q. Preserve characteristic black Q ring, mint offset contours, white central circular counter, retro pixel hero. Center full mark in middle 64 percent of canvas with generous safe margins; background solid pale mint #E8F5EE edge-to-edge with NO rounded corners or shadow. Crisp clean original identity, not a new design. No text or other graphics."
+    }
+  ]
+}

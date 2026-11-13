@@ -1,7 +1,9 @@
+import type { ThemeColors } from '@/shared/constants/colors';
+import { useThemedStyles } from '@/shared/theme/useTheme';
 import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { colors, fontSize, radius, spacing } from '@/shared/constants';
+import { fontSize, radius, spacing } from '@/shared/constants';
 
 import { Button } from './Button';
 
@@ -41,6 +43,8 @@ export function OptionsModal<T extends string>({
   onClear,
   emptyText = 'Нет вариантов',
 }: OptionsModalProps<T>) {
+  const styles = useThemedStyles(createStyles);
+
   const selectedSet = new Set<string>(selected);
   return (
     <Modal
@@ -108,53 +112,54 @@ export function OptionsModal<T extends string>({
 
 const MARK_SIZE = 24;
 
-const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  sheet: {
-    maxHeight: '75%',
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.card,
-    borderTopRightRadius: radius.card,
-    paddingHorizontal: spacing.sm,
-    paddingTop: spacing.sm,
-  },
-  title: {
-    color: colors.textPrimary,
-    fontSize: fontSize.subtitle,
-    fontWeight: '700',
-    marginBottom: spacing.xs,
-  },
-  list: { flexGrow: 0 },
-  empty: { color: colors.textSecondary, fontSize: fontSize.body, paddingVertical: spacing.sm },
-  row: {
-    minHeight: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  rowPressed: { opacity: 0.7 },
-  checkbox: {
-    width: MARK_SIZE,
-    height: MARK_SIZE,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: colors.textSecondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radio: {
-    width: MARK_SIZE,
-    height: MARK_SIZE,
-    borderRadius: MARK_SIZE / 2,
-    borderWidth: 2,
-    borderColor: colors.textSecondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  markChecked: { borderColor: colors.secondary, backgroundColor: colors.secondary },
-  markText: { color: colors.background, fontSize: 14, fontWeight: '700' },
-  label: { flex: 1, color: colors.textPrimary, fontSize: fontSize.body },
-  hint: { color: colors.textSecondary, fontSize: fontSize.body },
-  actions: { flexDirection: 'row', gap: spacing.xs, paddingVertical: spacing.sm },
-  action: { flex: 1 },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
+    sheet: {
+      maxHeight: '75%',
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: radius.card,
+      borderTopRightRadius: radius.card,
+      paddingHorizontal: spacing.sm,
+      paddingTop: spacing.sm,
+    },
+    title: {
+      color: colors.textPrimary,
+      fontSize: fontSize.subtitle,
+      fontWeight: '700',
+      marginBottom: spacing.xs,
+    },
+    list: { flexGrow: 0 },
+    empty: { color: colors.textSecondary, fontSize: fontSize.body, paddingVertical: spacing.sm },
+    row: {
+      minHeight: 48,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    rowPressed: { opacity: 0.7 },
+    checkbox: {
+      width: MARK_SIZE,
+      height: MARK_SIZE,
+      borderRadius: 4,
+      borderWidth: 2,
+      borderColor: colors.textSecondary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    radio: {
+      width: MARK_SIZE,
+      height: MARK_SIZE,
+      borderRadius: MARK_SIZE / 2,
+      borderWidth: 2,
+      borderColor: colors.textSecondary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    markChecked: { borderColor: colors.secondary, backgroundColor: colors.secondary },
+    markText: { color: colors.background, fontSize: 14, fontWeight: '700' },
+    label: { flex: 1, color: colors.textPrimary, fontSize: fontSize.body },
+    hint: { color: colors.textSecondary, fontSize: fontSize.body },
+    actions: { flexDirection: 'row', gap: spacing.xs, paddingVertical: spacing.sm },
+    action: { flex: 1 },
+  });

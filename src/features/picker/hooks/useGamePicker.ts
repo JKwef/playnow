@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import { useBacklog } from '@/features/backlog/hooks/useBacklog';
-import type { Game } from '@/features/backlog/types/Game';
+import type { BacklogErrorCode, Game } from '@/features/backlog/types/Game';
 import { newSeed, seededRandom } from '@/shared/utils/random';
 
 import type { BlacklistService } from '../services/blacklist';
@@ -15,7 +15,9 @@ export type PickerStatus =
   /** Игра подобрана. */
   | 'ready'
   /** Под контекст ничего не подходит (FR4.2). */
-  | 'empty';
+  | 'empty'
+  /** Бэклог не загрузился: подбирать не из чего. */
+  | 'error';
 
 export interface UseGamePickerResult {
   status: PickerStatus;
@@ -28,6 +30,13 @@ export interface UseGamePickerResult {
   postpone: () => Promise<void>;
   /** true, если других подходящих игр больше нет и «Другой вариант» вернёт ту же. */
   isLastOption: boolean;
+  /** Ошибка загрузки бэклога (код и текст для BacklogErrorView). */
+  errorCode: BacklogErrorCode | null;
+  errorMessage: string | null;
+  /** Идёт повторная загрузка бэклога после ошибки. */
+  isRetrying: boolean;
+  /** Повторить загрузку бэклога. */
+  refresh: () => Promise<void>;
 }
 
 /**
@@ -39,7 +48,8 @@ export const useGamePicker = (
   context: PickerContext,
   blacklistService?: BlacklistService,
 ): UseGamePickerResult => {
-  const { games } = useBacklog();
+  const backlog = useBacklog();
+  const { games } = backlog;
   const blacklist = useBlacklist(blacklistService);
   const postponed = blacklist.postponed;
   const [seed, setSeed] = useState(newSeed);
@@ -87,7 +97,8 @@ export const useGamePicker = (
   }, [game, addToBlacklist]);
 
   let status: PickerStatus = 'ready';
-  if (games === undefined || blacklist.isLoading) status = 'loading';
+  if (backlog.status === 'error') status = 'error';
+  else if (games === undefined || blacklist.isLoading) status = 'loading';
   else if (game === null) status = 'empty';
 
   return {
@@ -97,5 +108,9 @@ export const useGamePicker = (
     next,
     postpone,
     isLastOption: game !== null && !hasOther,
+    errorCode: backlog.errorCode,
+    errorMessage: backlog.errorMessage,
+    isRetrying: backlog.isRefreshing,
+    refresh: backlog.refresh,
   };
 };

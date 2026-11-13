@@ -1,8 +1,10 @@
+import type { ThemeColors } from '@/shared/constants/colors';
+import { useThemeColors, useThemedStyles } from '@/shared/theme/useTheme';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { OptionsModal } from '@/shared/components/OptionsModal';
-import { colors, fontSize, radius, spacing } from '@/shared/constants';
+import { fontSize, radius, spacing } from '@/shared/constants';
 
 import { SORT_OPTIONS, type GenreCount, type SortOption } from '../utils/filterGames';
 import { genreLabel } from '../utils/genres';
@@ -29,6 +31,9 @@ export function BacklogToolbar({
   sort,
   onChangeSort,
 }: BacklogToolbarProps) {
+  const styles = useThemedStyles(createStyles);
+  const colors = useThemeColors();
+
   const [openSheet, setOpenSheet] = useState<'genres' | 'sort' | null>(null);
   const sortLabel = SORT_OPTIONS.find((option) => option.value === sort)?.label ?? '';
   const genresLabel = selectedGenres.length === 0 ? 'Все жанры' : `Жанры: ${selectedGenres.length}`;
@@ -115,6 +120,8 @@ interface ChipProps {
 }
 
 function Chip({ label, active, accessibilityHint, onPress }: ChipProps) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Pressable
       onPress={onPress}
@@ -130,31 +137,32 @@ function Chip({ label, active, accessibilityHint, onPress }: ChipProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { paddingHorizontal: spacing.sm, paddingTop: spacing.sm, gap: spacing.xs },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.button,
-    paddingHorizontal: spacing.sm,
-  },
-  search: { flex: 1, minHeight: 48, color: colors.textPrimary, fontSize: fontSize.body },
-  clear: { padding: 4 },
-  clearText: { color: colors.textSecondary, fontSize: fontSize.body },
-  filters: { flexDirection: 'row', gap: spacing.xs },
-  chip: {
-    flexShrink: 1,
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  chipActive: { borderColor: colors.secondary },
-  chipText: { color: colors.textPrimary, fontSize: fontSize.caption + 2 },
-  chipTextActive: { color: colors.secondary },
-  pressed: { opacity: 0.8 },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { paddingHorizontal: spacing.sm, paddingTop: spacing.sm, gap: spacing.xs },
+    searchBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: radius.button,
+      paddingHorizontal: spacing.sm,
+    },
+    search: { flex: 1, minHeight: 48, color: colors.textPrimary, fontSize: fontSize.body },
+    clear: { padding: 4 },
+    clearText: { color: colors.textSecondary, fontSize: fontSize.body },
+    filters: { flexDirection: 'row', gap: spacing.xs },
+    chip: {
+      flexShrink: 1,
+      minHeight: 44,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.sm,
+      borderRadius: radius.button,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    chipActive: { borderColor: colors.secondary },
+    chipText: { color: colors.textPrimary, fontSize: fontSize.caption + 2 },
+    chipTextActive: { color: colors.secondary },
+    pressed: { opacity: 0.8 },
+  });

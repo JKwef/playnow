@@ -1,7 +1,9 @@
+import type { ThemeColors } from '@/shared/constants/colors';
+import { useThemeColors, useThemedStyles } from '@/shared/theme/useTheme';
 import { useCallback, type ReactElement } from 'react';
 import { FlatList, Platform, RefreshControl, StyleSheet, View } from 'react-native';
 
-import { colors, spacing } from '@/shared/constants';
+import { spacing } from '@/shared/constants';
 
 import type { Game } from '../types/Game';
 import { GAME_CARD_HEIGHT, GameCard } from './GameCard';
@@ -31,6 +33,9 @@ export function GameList({
   onRefresh,
   ListEmptyComponent,
 }: GameListProps) {
+  const styles = useThemedStyles(createStyles);
+  const colors = useThemeColors();
+
   const renderItem = useCallback(
     ({ item }: { item: Game }) => <GameCard game={item} onPress={onPressGame} />,
     [onPressGame],
@@ -66,10 +71,13 @@ export function GameList({
 }
 
 function Separator() {
+  const styles = useThemedStyles(createStyles);
+
   return <View style={styles.separator} />;
 }
 
-const styles = StyleSheet.create({
-  content: { padding: spacing.sm, flexGrow: 1 },
-  separator: { height: SEPARATOR },
-});
+const createStyles = (_colors: ThemeColors) =>
+  StyleSheet.create({
+    content: { padding: spacing.sm, flexGrow: 1 },
+    separator: { height: SEPARATOR },
+  });

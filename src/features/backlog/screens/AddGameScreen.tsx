@@ -1,10 +1,12 @@
+import type { ThemeColors } from '@/shared/constants/colors';
+import { useThemeColors, useThemedStyles } from '@/shared/theme/useTheme';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import type { RootStackScreenProps } from '@/navigation/types';
 import { Button } from '@/shared/components/Button';
 import { Screen } from '@/shared/components/Screen';
-import { colors, fontSize, radius, spacing } from '@/shared/constants';
+import { fontSize, radius, spacing } from '@/shared/constants';
 
 import { useAddGame } from '../hooks/useAddGame';
 import { genreLabel, SELECTABLE_GENRES } from '../utils/genres';
@@ -12,6 +14,9 @@ import { parseSteamAppId } from '../utils/manualGame';
 
 /** Ручное добавление игры (FR2.6): название, по желанию ссылка Steam и жанры. */
 export function AddGameScreen({ navigation }: RootStackScreenProps<'AddGame'>) {
+  const styles = useThemedStyles(createStyles);
+  const colors = useThemeColors();
+
   const { isSaving, errorMessage, addGame } = useAddGame();
   const [name, setName] = useState('');
   const [steamInput, setSteamInput] = useState('');
@@ -68,7 +73,7 @@ export function AddGameScreen({ navigation }: RootStackScreenProps<'AddGame'>) {
       <Text style={[styles.hint, steamInvalid && styles.error]}>
         {steamInvalid
           ? 'Не похоже на ссылку Steam. Нужна ссылка вида store.steampowered.com/app/…'
-          : 'С ней кнопка «Играть» сможет запустить игру через Steam'}
+          : 'С ней кнопка «Открыть в Steam» сможет открыть игру в Steam'}
       </Text>
 
       <Text style={styles.label}>Жанры (необязательно)</Text>
@@ -107,32 +112,33 @@ export function AddGameScreen({ navigation }: RootStackScreenProps<'AddGame'>) {
   );
 }
 
-const styles = StyleSheet.create({
-  label: { color: colors.textPrimary, fontSize: fontSize.body, fontWeight: '600' },
-  input: {
-    minHeight: 48,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.button,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.textPrimary,
-    fontSize: fontSize.body,
-  },
-  inputError: { borderColor: colors.error },
-  hint: { color: colors.textSecondary, fontSize: fontSize.caption + 2, marginTop: -spacing.xs },
-  error: { color: colors.error, fontSize: fontSize.caption + 2 },
-  genres: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  genre: {
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  genreChecked: { borderColor: colors.secondary, backgroundColor: colors.secondary },
-  genreText: { color: colors.textPrimary, fontSize: fontSize.caption + 2 },
-  genreTextChecked: { color: colors.background, fontWeight: '600' },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    label: { color: colors.textPrimary, fontSize: fontSize.body, fontWeight: '600' },
+    input: {
+      minHeight: 48,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radius.button,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      color: colors.textPrimary,
+      fontSize: fontSize.body,
+    },
+    inputError: { borderColor: colors.error },
+    hint: { color: colors.textSecondary, fontSize: fontSize.caption + 2, marginTop: -spacing.xs },
+    error: { color: colors.error, fontSize: fontSize.caption + 2 },
+    genres: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+    genre: {
+      minHeight: 44,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.sm,
+      borderRadius: radius.button,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    genreChecked: { borderColor: colors.secondary, backgroundColor: colors.secondary },
+    genreText: { color: colors.textPrimary, fontSize: fontSize.caption + 2 },
+    genreTextChecked: { color: colors.background, fontWeight: '600' },
+  });

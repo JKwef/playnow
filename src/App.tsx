@@ -2,13 +2,17 @@ import { NavigationContainer } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import * as WebBrowser from 'expo-web-browser';
-import { useState } from 'react';
+import * as SystemUI from 'expo-system-ui';
+import { useEffect, useMemo, useState } from 'react';
+import { Appearance, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { linking } from '@/navigation/linking';
 import { RootNavigator } from '@/navigation/RootNavigator';
-import { navigationTheme } from '@/navigation/theme';
+import { createNavigationTheme } from '@/navigation/theme';
 import { LoadingIndicator } from '@/shared/components/LoadingIndicator';
+import { ThemeProvider } from '@/shared/theme/ThemeProvider';
+import { useTheme } from '@/shared/theme/useTheme';
 
 // Веб-версия (проверка на ПК): вход через Steam идёт во всплывающем окне, которое
 // возвращается на /auth. Этот вызов передаёт результат открывшему окну и закрывает
@@ -33,16 +37,34 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <NavigationContainer
-          theme={navigationTheme}
-          linking={linking}
-          fallback={<LoadingIndicator fullScreen />}
-        >
-          <RootNavigator />
-        </NavigationContainer>
-        <StatusBar style="light" />
-      </QueryClientProvider>
+      <ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <ThemedNavigation />
+        </QueryClientProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
+  );
+}
+
+function ThemedNavigation() {
+  const { mode, colors } = useTheme();
+  const navigationTheme = useMemo(() => createNavigationTheme(mode, colors), [mode, colors]);
+  useEffect(() => {
+    if (Platform.OS !== 'web') Appearance.setColorScheme(mode);
+    void SystemUI.setBackgroundColorAsync(colors.background).catch((error: unknown) =>
+      console.warn('system background update failed', error),
+    );
+  }, [colors.background, mode]);
+  return (
+    <>
+      <NavigationContainer
+        theme={navigationTheme}
+        linking={linking}
+        fallback={<LoadingIndicator fullScreen />}
+      >
+        <RootNavigator />
+      </NavigationContainer>
+      <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+    </>
   );
 }

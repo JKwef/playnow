@@ -8,7 +8,7 @@
   Скрипт сам выставляет DENO_DIR внутрь workspace (иначе кэш Deno пишется в
   %LOCALAPPDATA% и на чужих машинах/в песочнице это может быть запрещено),
   затем запускает:
-    deno check — типы трёх точек входа;
+    deno check — типы четырёх точек входа;
     deno test  — unit-тесты рядом с функциями (*.test.ts).
 
   Deno не требуется устанавливать в систему: скрипт ищет portable-сборку в
@@ -23,7 +23,8 @@ $functions = Join-Path $root 'supabase\functions'
 $targets = @(
   'supabase/functions/steam-auth/index.ts',
   'supabase/functions/steam-library/index.ts',
-  'supabase/functions/rawg-enrich/index.ts'
+  'supabase/functions/rawg-enrich/index.ts',
+  'supabase/functions/delete-account/index.ts'
 )
 
 if (-not (Test-Path -LiteralPath $deno)) {
@@ -41,7 +42,7 @@ $testOutput = New-Object System.Collections.Generic.List[string]
 
 Push-Location $root
 try {
-  Write-Host '==> deno check: типы точек входа' -ForegroundColor Cyan
+  Write-Host '==> deno check: типы четырёх точек входа' -ForegroundColor Cyan
   & $deno check @targets 2>&1 | ForEach-Object {
     $line = "$_"
     # PS 5.1 иногда отдаёт строку stderr как голое имя исключения — это шум.

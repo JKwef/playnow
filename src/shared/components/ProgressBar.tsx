@@ -1,7 +1,9 @@
+import type { ThemeColors } from '@/shared/constants/colors';
+import { useThemedStyles } from '@/shared/theme/useTheme';
 import { useEffect, useState } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
 
-import { colors, radius } from '@/shared/constants';
+import { radius } from '@/shared/constants';
 
 export interface ProgressBarProps {
   /** Текст для скринридера. */
@@ -14,6 +16,8 @@ export interface ProgressBarProps {
  * поэтому честнее показывать движение, а не выдуманные проценты.
  */
 export function ProgressBar({ label }: ProgressBarProps) {
+  const styles = useThemedStyles(createStyles);
+
   const [progress] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
@@ -43,20 +47,21 @@ export function ProgressBar({ label }: ProgressBarProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  track: {
-    height: 6,
-    width: '100%',
-    maxWidth: 320,
-    alignSelf: 'center',
-    borderRadius: radius.button,
-    backgroundColor: colors.surface,
-    overflow: 'hidden',
-  },
-  bar: {
-    width: 120,
-    height: '100%',
-    borderRadius: radius.button,
-    backgroundColor: colors.secondary,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    track: {
+      height: 6,
+      width: '100%',
+      maxWidth: 320,
+      alignSelf: 'center',
+      borderRadius: radius.button,
+      backgroundColor: colors.surface,
+      overflow: 'hidden',
+    },
+    bar: {
+      width: 120,
+      height: '100%',
+      borderRadius: radius.button,
+      backgroundColor: colors.secondary,
+    },
+  });

@@ -14,7 +14,9 @@
     "expo-crypto": "~58.0.7",
     "expo-linking": "~58.0.15",
     "expo-secure-store": "~58.0.2",
+    "expo-splash-screen": "~58.0.12",
     "expo-status-bar": "~58.0.4",
+    "expo-system-ui": "~58.0.7",
     "expo-web-browser": "~58.0.7",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -53,6 +55,9 @@
   },
   "jest": {
     "preset": "jest-expo",
+    "modulePathIgnorePatterns": [
+      "<rootDir>/.tools/"
+    ],
     "testPathIgnorePatterns": [
       "/node_modules/",
       "/supabase/functions/",

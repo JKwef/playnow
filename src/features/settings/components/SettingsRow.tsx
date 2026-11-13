@@ -1,6 +1,8 @@
+import type { ThemeColors } from '@/shared/constants/colors';
+import { useThemedStyles } from '@/shared/theme/useTheme';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, fontSize, spacing } from '@/shared/constants';
+import { fontSize, spacing } from '@/shared/constants';
 
 export interface SettingsRowProps {
   label: string;
@@ -13,6 +15,8 @@ export interface SettingsRowProps {
 
 /** Строка списка настроек (UI2: «Список опций»). */
 export function SettingsRow({ label, value, onPress, accessibilityHint }: SettingsRowProps) {
+  const styles = useThemedStyles(createStyles);
+
   const content = (
     <>
       <Text style={[styles.label, onPress !== undefined && styles.link]}>{label}</Text>
@@ -39,16 +43,17 @@ export function SettingsRow({ label, value, onPress, accessibilityHint }: Settin
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    minHeight: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  pressed: { opacity: 0.7 },
-  label: { color: colors.textPrimary, fontSize: fontSize.body, flexShrink: 1 },
-  link: { color: colors.secondary },
-  value: { color: colors.textSecondary, fontSize: fontSize.body },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    row: {
+      minHeight: 48,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+    },
+    pressed: { opacity: 0.7 },
+    label: { color: colors.textPrimary, fontSize: fontSize.body, flexShrink: 1 },
+    link: { color: colors.secondary },
+    value: { color: colors.textSecondary, fontSize: fontSize.body },
+  });

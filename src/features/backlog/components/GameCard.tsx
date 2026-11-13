@@ -1,8 +1,10 @@
+import type { ThemeColors } from '@/shared/constants/colors';
+import { useThemedStyles } from '@/shared/theme/useTheme';
 import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/shared/components/Card';
-import { colors, fontSize, radius, spacing } from '@/shared/constants';
+import { fontSize, radius, spacing } from '@/shared/constants';
 import { formatPlaytime } from '@/shared/utils/format';
 
 import type { Game } from '../types/Game';
@@ -19,6 +21,8 @@ export interface GameCardProps {
 
 /** Карточка игры в списке: обложка, название, время в игре, жанры (UI2). */
 export const GameCard = memo(function GameCard({ game, onPress }: GameCardProps) {
+  const styles = useThemedStyles(createStyles);
+
   const playtime = formatPlaytime(game.playtimeMinutes);
   const genres = game.genres.slice(0, 3).map(genreLabel).join(', ');
   return (
@@ -42,16 +46,17 @@ export const GameCard = memo(function GameCard({ game, onPress }: GameCardProps)
   );
 });
 
-const styles = StyleSheet.create({
-  card: {
-    height: GAME_CARD_HEIGHT,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  // Пропорции обложки Steam header.jpg (460×215).
-  cover: { width: 120, height: 56, borderRadius: radius.button },
-  text: { flex: 1, gap: 4 },
-  name: { color: colors.textPrimary, fontSize: fontSize.body, fontWeight: '600' },
-  meta: { color: colors.textSecondary, fontSize: fontSize.caption + 2 },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    card: {
+      height: GAME_CARD_HEIGHT,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    // Пропорции обложки Steam header.jpg (460×215).
+    cover: { width: 120, height: 56, borderRadius: radius.button },
+    text: { flex: 1, gap: 4 },
+    name: { color: colors.textPrimary, fontSize: fontSize.body, fontWeight: '600' },
+    meta: { color: colors.textSecondary, fontSize: fontSize.caption + 2 },
+  });

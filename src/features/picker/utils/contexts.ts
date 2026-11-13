@@ -4,8 +4,8 @@ import type { ContextId, PickerContext } from '../types';
 export const PICKER_CONTEXTS: readonly PickerContext[] = [
   {
     id: 'short-session',
-    title: 'У меня 30 минут',
-    description: 'Короткие головоломки и аркады',
+    title: 'На полчаса',
+    description: 'Открой новую головоломку или аркаду',
     icon: '⏱️',
     genres: ['puzzle', 'arcade', 'casual'],
     // По ТЗ: playtime < 60 мин — игры, в которые ещё не успели засесть надолго.
@@ -13,21 +13,21 @@ export const PICKER_CONTEXTS: readonly PickerContext[] = [
   },
   {
     id: 'addictive',
-    title: 'Хочу залипательное',
+    title: 'Ещё один забег',
     description: 'Рогалики и «ещё один забег»',
     icon: '🌀',
     genres: ['puzzle', 'arcade', 'roguelike'],
   },
   {
     id: 'story',
-    title: 'Хочу сюжетку',
-    description: 'RPG и приключения с историей',
+    title: 'Погрузиться в мир',
+    description: 'Истории, RPG и приключения',
     icon: '📖',
     genres: ['rpg', 'adventure', 'narrative'],
   },
   {
     id: 'action',
-    title: 'Хочу экшен',
+    title: 'Больше драйва',
     description: 'Шутеры, платформеры, драйв',
     icon: '💥',
     genres: ['action', 'shooter', 'platformer'],

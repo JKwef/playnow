@@ -1,6 +1,8 @@
+import type { ThemeColors } from '@/shared/constants/colors';
+import { useThemedStyles } from '@/shared/theme/useTheme';
 import { StyleSheet, Text } from 'react-native';
 
-import { colors, fontSize } from '@/shared/constants';
+import { fontSize } from '@/shared/constants';
 
 export interface PlaceholderProps {
   title: string;
@@ -10,6 +12,8 @@ export interface PlaceholderProps {
 
 /** Временная подпись для экранов-заглушек этапа 2. Удалится по мере реализации экранов. */
 export function Placeholder({ title, stage }: PlaceholderProps) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <>
       <Text accessibilityRole="header" style={styles.title}>
@@ -20,7 +24,8 @@ export function Placeholder({ title, stage }: PlaceholderProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  title: { color: colors.textPrimary, fontSize: fontSize.title, fontWeight: '700' },
-  note: { color: colors.textSecondary, fontSize: fontSize.body },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    title: { color: colors.textPrimary, fontSize: fontSize.title, fontWeight: '700' },
+    note: { color: colors.textSecondary, fontSize: fontSize.body },
+  });

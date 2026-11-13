@@ -1,11 +1,12 @@
-import { DarkTheme, type Theme } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, type Theme } from '@react-navigation/native';
 
-import { colors } from '@/shared/constants';
+import type { ThemeColors } from '@/shared/constants/colors';
+import type { ThemeMode } from '@/shared/theme/useTheme';
 
 /** Тема React Navigation на основе палитры UI1 (шапки, фон, разделители). */
-export const navigationTheme: Theme = {
-  ...DarkTheme,
-  dark: true,
+export const createNavigationTheme = (mode: ThemeMode, colors: ThemeColors): Theme => ({
+  ...(mode === 'dark' ? DarkTheme : DefaultTheme),
+  dark: mode === 'dark',
   colors: {
     ...DarkTheme.colors,
     primary: colors.secondary,
@@ -15,4 +16,4 @@ export const navigationTheme: Theme = {
     border: colors.border,
     notification: colors.secondary,
   },
-};
+});

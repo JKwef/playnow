@@ -13,3 +13,7 @@ verify_jwt = false
 [functions.rawg-enrich]
 # Как steam-library: JWT проверяется внутри функции через auth.getUser.
 verify_jwt = false
+
+[functions.delete-account]
+# Как steam-library: JWT проверяется внутри функции через auth.getUser.
+verify_jwt = false

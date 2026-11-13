@@ -8,8 +8,8 @@ export const spacing = {
 
 /** Радиусы скругления из UI1. */
 export const radius = {
-  button: 8,
-  card: 16,
+  button: 14,
+  card: 20,
 } as const;
 
 export type SpacingToken = keyof typeof spacing;

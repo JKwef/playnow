@@ -1,18 +1,24 @@
 {
   "expo": {
-    "name": "PlayNow",
+    "name": "Quaeso",
     "slug": "playnow",
     "scheme": "playnow",
     "version": "1.0.0",
     "orientation": "default",
-    "icon": "./assets/images/icon.png",
-    "userInterfaceStyle": "dark",
-    "backgroundColor": "#121212",
-    "splash": {
-      "image": "./assets/images/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#121212"
-    },
+    "icon": "./assets/brand/quaeso-icon.png",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#0C1513",
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/brand/quaeso-icon.png",
+          "backgroundColor": "#0C1513",
+          "imageWidth": 160,
+          "resizeMode": "contain"
+        }
+      ]
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.jkwef.playnow",
@@ -22,16 +28,21 @@
     },
     "android": {
       "package": "com.jkwef.playnow",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#121212",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#EDF7F1",
+        "foregroundImage": "./assets/brand/quaeso-icon.png"
       },
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.VIBRATE",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/brand/quaeso-icon.png"
     },
     "extra": {
       "supabaseUrl": "https://ywlbltxdagjlhevftkst.supabase.co",

@@ -1,7 +1,9 @@
+import type { ThemeColors } from '@/shared/constants/colors';
+import { useThemedStyles } from '@/shared/theme/useTheme';
 import { memo, useState } from 'react';
 import { Image, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { colors, fontSize } from '@/shared/constants';
+import { fontSize } from '@/shared/constants';
 
 export interface GameCoverProps {
   name: string;
@@ -11,6 +13,8 @@ export interface GameCoverProps {
 
 /** Обложка игры. Нет ссылки или картинка не загрузилась — показываем первую букву названия. */
 export const GameCover = memo(function GameCover({ name, uri, style }: GameCoverProps) {
+  const styles = useThemedStyles(createStyles);
+
   const [failedUri, setFailedUri] = useState<string | null>(null);
   const showImage = uri !== null && uri !== failedUri;
   return (
@@ -34,12 +38,13 @@ export const GameCover = memo(function GameCover({ name, uri, style }: GameCover
   );
 });
 
-const styles = StyleSheet.create({
-  box: {
-    backgroundColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  letter: { color: colors.textSecondary, fontSize: fontSize.subtitle, fontWeight: '700' },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    box: {
+      backgroundColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    letter: { color: colors.textSecondary, fontSize: fontSize.subtitle, fontWeight: '700' },
+  });

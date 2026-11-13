@@ -52,8 +52,7 @@ export const createSteamLauncher = (linking: LinkingLike): SteamLauncher => ({
 
 export const LAUNCH_ERROR_MESSAGES: Record<LaunchErrorCode, string> = {
   steam_not_installed: 'Steam не установлен. Установите Steam и попробуйте снова',
-  manual_game:
-    'Игра добавлена вручную без ссылки на Steam, поэтому запустить её из приложения нельзя',
+  manual_game: 'Игра добавлена вручную без ссылки на Steam, поэтому открыть её в Steam нельзя',
 };
 
 /** Страница со ссылками на мобильное приложение Steam. */

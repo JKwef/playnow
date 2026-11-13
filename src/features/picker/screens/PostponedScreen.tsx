@@ -1,3 +1,5 @@
+import type { ThemeColors } from '@/shared/constants/colors';
+import { useThemedStyles } from '@/shared/theme/useTheme';
 import { useMemo } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,13 +9,15 @@ import { useBacklog } from '@/features/backlog/hooks/useBacklog';
 import type { RootStackScreenProps } from '@/navigation/types';
 import { Button } from '@/shared/components/Button';
 import { Card } from '@/shared/components/Card';
-import { colors, fontSize, radius, spacing } from '@/shared/constants';
+import { fontSize, radius, spacing } from '@/shared/constants';
 
 import { useBlacklist } from '../hooks/useBlacklist';
 import { formatPostponedUntil } from '../utils/postponed';
 
 /** Отложенные игры (FR4.4) с возможностью вернуть игру в подбор раньше 7 дней. */
 export function PostponedScreen({ navigation }: RootStackScreenProps<'Postponed'>) {
+  const styles = useThemedStyles(createStyles);
+
   const { games } = useBacklog();
   const { postponed, restore } = useBlacklist();
 
@@ -74,24 +78,27 @@ export function PostponedScreen({ navigation }: RootStackScreenProps<'Postponed'
 }
 
 function Separator() {
+  const styles = useThemedStyles(createStyles);
+
   return <View style={styles.separator} />;
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.sm, gap: spacing.sm, flexGrow: 1 },
-  hint: { color: colors.textSecondary, fontSize: fontSize.caption + 2 },
-  empty: { flex: 1, justifyContent: 'center', gap: spacing.sm },
-  emptyTitle: {
-    color: colors.textPrimary,
-    fontSize: fontSize.subtitle,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  cover: { width: 96, height: 45, borderRadius: radius.button },
-  text: { flex: 1, gap: 4 },
-  name: { color: colors.textPrimary, fontSize: fontSize.body, fontWeight: '600' },
-  until: { color: colors.textSecondary, fontSize: fontSize.caption + 1 },
-  separator: { height: spacing.xs },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    content: { padding: spacing.sm, gap: spacing.sm, flexGrow: 1 },
+    hint: { color: colors.textSecondary, fontSize: fontSize.caption + 2 },
+    empty: { flex: 1, justifyContent: 'center', gap: spacing.sm },
+    emptyTitle: {
+      color: colors.textPrimary,
+      fontSize: fontSize.subtitle,
+      fontWeight: '700',
+      textAlign: 'center',
+    },
+    row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    cover: { width: 96, height: 45, borderRadius: radius.button },
+    text: { flex: 1, gap: 4 },
+    name: { color: colors.textPrimary, fontSize: fontSize.body, fontWeight: '600' },
+    until: { color: colors.textSecondary, fontSize: fontSize.caption + 1 },
+    separator: { height: spacing.xs },
+  });

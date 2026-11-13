@@ -1,5 +1,5 @@
 import { getEnv } from '@/shared/config/env';
-import { fetchWithTimeout } from '@/shared/services/http';
+import { createFetchWithTimeout, fetchWithTimeout } from '@/shared/services/http';
 import { getSupabase } from '@/shared/services/supabase';
 
 import type { FunctionsClientDeps } from './functionsClient';
@@ -10,6 +10,10 @@ import { createSteamLibraryService, type SteamLibraryService } from './steamApi'
 let functionsDeps: FunctionsClientDeps | null = null;
 let library: SteamLibraryService | null = null;
 let enrichment: RawgEnrichmentService | null = null;
+
+// Сервер начинает игры в течение 25 с; последняя может ждать RAWG и два запроса
+// обложки ещё до 30 с. Оставляем запас на Auth, БД и передачу ответа.
+export const ENRICHMENT_TIMEOUT_MS = 90_000;
 
 const getFunctionsDeps = (): FunctionsClientDeps => {
   if (functionsDeps === null) {
@@ -36,7 +40,10 @@ export const getSteamLibrary = (): SteamLibraryService => {
 
 /** Боевой сервис жанров из RAWG (ленивый синглтон). */
 export const getRawgEnrichment = (): RawgEnrichmentService => {
-  enrichment ??= createRawgEnrichmentService(getFunctionsDeps());
+  enrichment ??= createRawgEnrichmentService({
+    ...getFunctionsDeps(),
+    fetch: createFetchWithTimeout(ENRICHMENT_TIMEOUT_MS),
+  });
   return enrichment;
 };
 

@@ -18,7 +18,7 @@ const readExtra = (extra: Record<string, unknown> | undefined, key: string): str
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: config.name ?? 'PlayNow',
+  name: config.name ?? 'Quaeso',
   slug: config.slug ?? 'playnow',
   extra: {
     ...config.extra,

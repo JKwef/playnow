@@ -1,7 +1,9 @@
+import type { ThemeColors } from '@/shared/constants/colors';
+import { useThemedStyles } from '@/shared/theme/useTheme';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { colors, radius, spacing } from '@/shared/constants';
+import { radius, spacing } from '@/shared/constants';
 
 export interface CardProps {
   children: ReactNode;
@@ -12,7 +14,7 @@ export interface CardProps {
   style?: StyleProp<ViewStyle>;
 }
 
-/** Поверхность-карточка дизайн-системы (UI1: Surface #1E1E1E, радиус 16). */
+/** Общая поверхность Quaeso с тонкой границей. */
 export function Card({
   children,
   onPress,
@@ -20,6 +22,8 @@ export function Card({
   accessibilityHint,
   style,
 }: CardProps) {
+  const styles = useThemedStyles(createStyles);
+
   if (onPress === undefined) {
     return <View style={[styles.card, style]}>{children}</View>;
   }
@@ -36,12 +40,15 @@ export function Card({
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.card,
-    padding: spacing.xs,
-    overflow: 'hidden',
-  },
-  pressed: { opacity: 0.85 },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.card,
+      padding: spacing.xs,
+      overflow: 'hidden',
+    },
+    pressed: { opacity: 0.85 },
+  });
