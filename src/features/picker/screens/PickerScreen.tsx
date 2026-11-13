@@ -1,44 +1,60 @@
 import type { ThemeColors } from '@/shared/constants/colors';
 import { useThemedStyles } from '@/shared/theme/useTheme';
-import { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useBacklog } from '@/features/backlog/hooks/useBacklog';
+import { useGamePreferences } from '@/features/backlog/hooks/useGamePreferences';
+import { BacklogStatusNotice } from '@/features/backlog/components/BacklogStatusNotice';
 import type { RootStackScreenProps } from '@/navigation/types';
 import { Button } from '@/shared/components/Button';
 import { Screen } from '@/shared/components/Screen';
 import { spacing } from '@/shared/constants';
 
 import { ContextCard } from '../components/ContextCard';
+import { LastAcceptedChoice } from '../components/LastAcceptedChoice';
 import { useBlacklist } from '../hooks/useBlacklist';
-import type { ContextId } from '../types';
+import { usePickerSelection } from '../hooks/usePickerSelection';
+import { PICKER_MODE_LABELS, type PickerMode } from '../types';
 import { PICKER_CONTEXTS } from '../utils/contexts';
-import { matchesContext } from '../utils/pickGame';
+import { filterCandidates } from '../utils/pickGame';
+import { useInstalledGames } from '@/features/backlog/hooks/useInstalledGames';
 
 export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
   const styles = useThemedStyles(createStyles);
 
-  const { games, genresStatus, status, errorMessage, refresh, isRefreshing } = useBacklog();
-  const { postponed, isLoading: isBlacklistLoading } = useBlacklist();
-  const [selection, setSelection] = useState<ContextId | null>(null);
+  const backlog = useBacklog();
+  const { games, genresStatus, status } = backlog;
+  const blacklist = useBlacklist();
+  const { postponed, isLoading: isBlacklistLoading } = blacklist;
+  const preferences = useGamePreferences();
+  const settings = usePickerSelection();
+  const installed = useInstalledGames();
+  const installedOnly = settings.selection.installedOnly === true;
+  const { mode, contextId: selected } = settings.selection;
   const counts = useMemo(
     () =>
       new Map(
         PICKER_CONTEXTS.map((context) => [
           context.id,
-          (games ?? []).filter(
-            (game) => !postponed.has(game.appid) && matchesContext(game, context),
-          ).length,
+          filterCandidates(games ?? [], context, {
+            exclude: new Set(postponed.keys()),
+            preferences: preferences.preferences,
+            mode,
+            installedOnly,
+            installedIds: installed.marked,
+          }).length,
         ]),
       ),
-    [games, postponed],
+    [games, postponed, preferences.preferences, mode, installedOnly, installed.marked],
   );
-  const selected =
-    selection ??
-    PICKER_CONTEXTS.find((context) => (counts.get(context.id) ?? 0) > 0)?.id ??
-    'short-session';
   const count = counts.get(selected) ?? 0;
-  const loading = status === 'loading' || isBlacklistLoading;
+  const loading =
+    status === 'loading' ||
+    isBlacklistLoading ||
+    preferences.isLoading ||
+    !settings.isReady ||
+    (installedOnly && !installed.isReady && !installed.error);
 
   return (
     <Screen
@@ -46,29 +62,116 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
         <View style={styles.action}>
           <Button
             label={loading ? 'Загружаем игры…' : 'Подобрать игру  →'}
-            disabled={loading || games === undefined || count === 0}
-            onPress={() => navigation.navigate('Result', { contextId: selected })}
+            disabled={
+              loading ||
+              preferences.isUnavailable ||
+              !!blacklist.errorMessage ||
+              games === undefined ||
+              (installedOnly && !installed.isReady)
+            }
+            onPress={() =>
+              navigation.navigate('Result', {
+                contextId: selected,
+                mode,
+                genreFilter: 'context',
+                ...(installedOnly ? { installedOnly: true } : {}),
+              })
+            }
           />
           <Text style={styles.hint} accessibilityLiveRegion="polite">
             {status === 'error' && games === undefined
               ? 'Повтори загрузку библиотеки выше.'
-              : loading
-                ? 'Подбор станет доступен после загрузки.'
-                : count > 0
-                  ? 'Не попадём в настроение? Можно выбрать другой вариант.'
-                  : genresStatus === 'loading'
-                    ? 'Определяем жанры. Подходящие игры скоро появятся.'
-                    : 'Пока нет подходящих игр. Попробуй другое настроение или добавь игру.'}
+              : preferences.isUnavailable || blacklist.errorMessage
+                ? 'Повтори загрузку статусов и отложенных игр выше.'
+                : loading
+                  ? 'Подбор станет доступен после загрузки.'
+                  : count > 0
+                    ? 'Не попадём в настроение? Можно выбрать другой вариант.'
+                    : genresStatus === 'loading'
+                      ? 'Определяем жанры. Подходящие игры скоро появятся.'
+                      : 'Под выбранные условия пока нет игр. Открой результат, чтобы увидеть причины и доступные действия.'}
           </Text>
         </View>
       }
     >
       <View style={styles.intro}>
-        <Text style={styles.eyebrow}>ТВОЯ БИБЛИОТЕКА. ТВОЙ МОМЕНТ.</Text>
         <Text accessibilityRole="header" style={styles.title}>
-          Во что играем{'\n'}сегодня?
+          Во что играем?
         </Text>
-        <Text style={styles.subtitle}>Выбери настроение. Остальное — за Quaeso.</Text>
+      </View>
+      <View style={styles.modes} accessibilityRole="radiogroup" accessibilityLabel="Режим подбора">
+        {(['new', 'continue'] as const).map((value: PickerMode) => (
+          <Pressable
+            key={value}
+            accessibilityRole="radio"
+            aria-checked={mode === value}
+            accessibilityState={{ checked: mode === value, disabled: !settings.isReady }}
+            accessibilityLabel={PICKER_MODE_LABELS[value]}
+            disabled={!settings.isReady}
+            onPress={() => settings.setMode(value)}
+            style={[styles.mode, mode === value && styles.modeSelected]}
+          >
+            <Text style={styles.modeText}>
+              {mode === value ? '● ' : '○ '}
+              {PICKER_MODE_LABELS[value]}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={styles.subtitle}>
+        {mode === 'new'
+          ? 'Сначала отмеченные «Не начинал», затем игры без статуса с нулевым временем.'
+          : 'Сначала отмеченные «Играю», затем игры без статуса с ненулевым временем.'}
+      </Text>
+      {settings.error && (
+        <Text accessibilityRole="alert" style={styles.noticeText}>
+          {settings.error}
+        </Text>
+      )}
+      <Text style={styles.section}>Какой у тебя настрой?</Text>
+      <Button
+        label={`${installedOnly ? '✓ ' : '○ '}Только отмеченные установленными`}
+        accessibilityLabel="Только отмеченные установленными"
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: installedOnly, disabled: !settings.isReady }}
+        aria-checked={installedOnly}
+        variant="secondary"
+        disabled={!settings.isReady}
+        onPress={() => settings.setInstalledOnly(!installedOnly)}
+      />
+      {installedOnly && (
+        <Text style={styles.subtitle}>
+          Только ваши ручные отметки для игрового компьютера, сохранённые на этом устройстве.
+          Отметить игру можно в её карточке.
+        </Text>
+      )}
+      {installedOnly && installed.error && (
+        <Text accessibilityRole="alert" style={styles.noticeText}>
+          {installed.error}
+        </Text>
+      )}
+      {installedOnly && !installed.isReady && installed.error && (
+        <Button
+          label="Повторить загрузку отметок установки"
+          variant="tertiary"
+          onPress={() => void installed.retry()}
+        />
+      )}
+      <View
+        style={styles.grid}
+        accessibilityRole="radiogroup"
+        accessibilityLabel="Настроение для подбора"
+      >
+        {PICKER_CONTEXTS.map((context) => (
+          <ContextCard
+            key={context.id}
+            context={context}
+            matchingCount={counts.get(context.id) ?? 0}
+            selected={selected === context.id}
+            onPress={settings.setContext}
+            disabled={!settings.isReady}
+          />
+        ))}
       </View>
       <View style={styles.libraryStatus}>
         <View style={styles.statusDot} />
@@ -81,63 +184,57 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
         </Text>
         <Text style={styles.statusTag}>{genresStatus === 'loading' ? 'Жанры…' : 'STEAM'}</Text>
       </View>
-      {status === 'error' && (
+      <BacklogStatusNotice backlog={backlog} />
+      {blacklist.errorMessage && (
         <View style={styles.notice}>
           <Text accessibilityRole="alert" style={styles.noticeText}>
-            {errorMessage ?? 'Не удалось загрузить игры'}
+            {blacklist.errorMessage}
           </Text>
           <Button
-            label={isRefreshing ? 'Загружаем…' : 'Повторить загрузку'}
+            label="Повторить загрузку отложенных"
             variant="secondary"
-            disabled={isRefreshing}
-            onPress={() => void refresh()}
+            onPress={() => void blacklist.retry()}
           />
         </View>
       )}
-      <Text style={styles.section}>Какой у тебя настрой?</Text>
-      <View
-        style={styles.grid}
-        accessibilityRole="radiogroup"
-        accessibilityLabel="Настроение для подбора"
-      >
-        {PICKER_CONTEXTS.map((context) => (
-          <ContextCard
-            key={context.id}
-            context={context}
-            matchingCount={counts.get(context.id) ?? 0}
-            selected={selected === context.id}
-            onPress={setSelection}
-          />
-        ))}
-      </View>
-      <View style={styles.shortcuts}>
-        <View style={styles.shortcut}>
+      {preferences.isFromCache && (
+        <Text style={styles.subtitle}>Используются сохранённые статусы и исключения.</Text>
+      )}
+      {preferences.loadError && (
+        <View style={styles.notice}>
+          <Text accessibilityRole="alert" style={styles.noticeText}>
+            {preferences.loadError}
+          </Text>
           <Button
-            label="Библиотека"
+            label="Повторить загрузку статусов"
             variant="secondary"
-            onPress={() => navigation.navigate('Backlog')}
+            disabled={preferences.isRefreshing}
+            onPress={() => void preferences.retry()}
           />
         </View>
-        <View style={styles.shortcut}>
-          <Button
-            label="Настройки"
-            variant="secondary"
-            onPress={() => navigation.navigate('Settings')}
-          />
-        </View>
-      </View>
+      )}
+      <LastAcceptedChoice
+        games={games}
+        canPickAnother={settings.isReady}
+        onPickAnother={() =>
+          navigation.navigate('Result', {
+            contextId: selected,
+            mode,
+            genreFilter: 'context',
+            ...(installedOnly ? { installedOnly: true } : {}),
+          })
+        }
+      />
+      <Button
+        label="История рекомендаций"
+        variant="secondary"
+        onPress={() => navigation.navigate('RecommendationHistory')}
+      />
       {postponed.size > 0 && (
         <Button
           label={`Отложенные игры · ${postponed.size}`}
           variant="tertiary"
           onPress={() => navigation.navigate('Postponed')}
-        />
-      )}
-      {games !== undefined && games.length === 0 && (
-        <Button
-          label="Добавить первую игру"
-          variant="secondary"
-          onPress={() => navigation.navigate('AddGame')}
         />
       )}
     </Screen>
@@ -147,11 +244,22 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     intro: { gap: 10, paddingTop: 8 },
-    eyebrow: { color: colors.secondary, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
+    modes: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+    mode: {
+      flexGrow: 1,
+      minHeight: 48,
+      justifyContent: 'center',
+      padding: spacing.sm,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    modeSelected: { borderColor: colors.secondary, backgroundColor: colors.mintMuted },
+    modeText: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
     title: {
       color: colors.textPrimary,
-      fontSize: 34,
-      lineHeight: 40,
+      fontSize: 26,
+      lineHeight: 32,
       fontWeight: '800',
       letterSpacing: -1,
     },
@@ -171,8 +279,6 @@ const createStyles = (colors: ThemeColors) =>
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
     action: { gap: 10, marginTop: 4 },
     hint: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, textAlign: 'center' },
-    shortcuts: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: 4 },
-    shortcut: { flex: 1, minWidth: 128 },
     notice: { gap: 12, padding: 16, borderRadius: 16, backgroundColor: colors.surface },
     noticeText: { color: colors.error, fontSize: 14 },
   });

@@ -19,7 +19,10 @@ const mockAuthState = {
 };
 
 jest.mock('@/features/auth/hooks/useAuth', () => ({
-  useAuth: (selector: (state: typeof mockAuthState) => unknown) => selector(mockAuthState),
+  useAuth: Object.assign(
+    (selector: (state: typeof mockAuthState) => unknown) => selector(mockAuthState),
+    { getState: () => mockAuthState },
+  ),
 }));
 
 jest.mock('@/features/settings/services/deleteAccount', () => ({
@@ -41,6 +44,7 @@ const createDeps = (overrides: Partial<DeleteAccountDeps> = {}): DeleteAccountDe
   cache: createCache(),
   confirm: jest.fn(async () => true),
   deleteAccount: jest.fn(async () => undefined),
+  clearLocalData: jest.fn(async () => undefined),
   ...overrides,
 });
 
@@ -55,6 +59,7 @@ const renderDeleteAccount = async (deps: DeleteAccountDeps) => {
 };
 
 beforeEach(() => {
+  mockAuthState.user = { steamId: STEAM_ID };
   jest.clearAllMocks();
   // Хук предупреждает об ошибке через console.warn: в тестах этот шум не нужен.
   jest.spyOn(console, 'warn').mockImplementation(() => undefined);
@@ -97,14 +102,16 @@ describe('useDeleteAccount: успешное удаление', () => {
     });
 
     expect(deps.deleteAccount).toHaveBeenCalledTimes(1);
+    expect(deps.deleteAccount).toHaveBeenCalledWith(STEAM_ID);
     expect(mockSignOut).toHaveBeenCalledTimes(1);
     expect(clearSpy).toHaveBeenCalledTimes(1);
     expect(clear).toHaveBeenCalledWith(STEAM_ID);
+    expect(deps.clearLocalData).toHaveBeenCalledWith(STEAM_ID);
     expect(result.current.isDeleting).toBe(false);
     expect(result.current.errorMessage).toBeNull();
   });
 
-  it('ошибка очистки кэша не отменяет выход и не показывается пользователю', async () => {
+  it('ошибка очистки кэша не отменяет выход и сообщается пользователю', async () => {
     const clear = jest.fn(async () => {
       throw new Error('storage unavailable');
     });
@@ -116,7 +123,7 @@ describe('useDeleteAccount: успешное удаление', () => {
     });
 
     expect(mockSignOut).toHaveBeenCalledTimes(1);
-    expect(result.current.errorMessage).toBeNull();
+    expect(result.current.errorMessage).toContain('локальные данные');
   });
 });
 
@@ -161,4 +168,47 @@ describe('useDeleteAccount: ошибка удаления', () => {
     expect(deleteAccount).toHaveBeenCalledTimes(2);
     expect(result.current.errorMessage).toBeNull();
   });
+});
+
+test('смена аккаунта во время подтверждения не удаляет новый аккаунт', async () => {
+  const deps = createDeps({
+    confirm: jest.fn(async () => {
+      mockAuthState.user = { steamId: '76561197960287931' };
+      return true;
+    }),
+  });
+  const { result } = await renderDeleteAccount(deps);
+  await act(async () => {
+    await result.current.requestDeleteAccount();
+  });
+  expect(deps.deleteAccount).not.toHaveBeenCalled();
+  expect(mockSignOut).not.toHaveBeenCalled();
+});
+
+test('параллельные нажатия вызывают одно подтверждение и одно удаление', async () => {
+  const deps = createDeps();
+  const { result } = await renderDeleteAccount(deps);
+  await act(async () => {
+    await Promise.all([
+      result.current.requestDeleteAccount(),
+      result.current.requestDeleteAccount(),
+    ]);
+  });
+  expect(deps.confirm).toHaveBeenCalledTimes(1);
+  expect(deps.deleteAccount).toHaveBeenCalledTimes(1);
+});
+
+test('новый аккаунт не выходит, если ответ удаления старого пришёл позже', async () => {
+  const deps = createDeps({
+    deleteAccount: jest.fn(async () => {
+      mockAuthState.user = { steamId: '76561197960287931' };
+    }),
+  });
+  const { result, clearSpy } = await renderDeleteAccount(deps);
+  await act(async () => {
+    await result.current.requestDeleteAccount();
+  });
+  expect(mockSignOut).not.toHaveBeenCalled();
+  expect(clearSpy).not.toHaveBeenCalled();
+  expect(deps.clearLocalData).toHaveBeenCalledWith(STEAM_ID);
 });

@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { isRecord } from '@/shared/utils/validation';
+import { queueAccountWrite } from '@/shared/services/accountScope';
+
+import { asNonNegativeInt, isRecord } from '@/shared/utils/validation';
 
 import type { BacklogSnapshot } from '../types/Game';
 import { parseGameRows, toGameRow } from './parseGames';
@@ -36,7 +38,14 @@ export const createBacklogCache = (storage: CacheStorage = AsyncStorage): Backlo
       if (!isRecord(parsed) || parsed.version !== CACHE_VERSION) return null;
       const games = parseGameRows(parsed.games);
       const updatedAt = typeof parsed.updatedAt === 'string' ? parsed.updatedAt : null;
-      return games === null || updatedAt === null ? null : { games, updatedAt };
+      const remaining = asNonNegativeInt(parsed.metadataRemaining);
+      return games === null || updatedAt === null
+        ? null
+        : {
+            games,
+            updatedAt,
+            ...(remaining !== null ? { metadataRemaining: remaining } : {}),
+          };
     } catch (error) {
       // Битый кэш не должен ломать запуск: считаем, что его нет.
       console.warn('backlog cache read failed', error);
@@ -48,10 +57,15 @@ export const createBacklogCache = (storage: CacheStorage = AsyncStorage): Backlo
       version: CACHE_VERSION,
       updatedAt: snapshot.updatedAt,
       games: snapshot.games.map(toGameRow),
+      ...(snapshot.metadataRemaining !== undefined
+        ? { metadataRemaining: snapshot.metadataRemaining }
+        : {}),
     };
-    await storage.setItem(keyFor(steamId), JSON.stringify(payload));
+    await queueAccountWrite(steamId, () =>
+      storage.setItem(keyFor(steamId), JSON.stringify(payload)),
+    );
   },
   clear: async (steamId) => {
-    await storage.removeItem(keyFor(steamId));
+    await queueAccountWrite(steamId, () => storage.removeItem(keyFor(steamId)));
   },
 });

@@ -24,11 +24,18 @@ export const parseGameRow = (row: unknown): Game | null => {
   const appid = asPositiveInt(row.appid);
   const name = asNonEmptyString(row.name);
   if (appid === null || name === null) return null;
+  const importedGenres = asStringArray(row.genres).map((genre) => genre.toLowerCase());
+  const override = Array.isArray(row.genres_override)
+    ? asStringArray(row.genres_override).map((genre) => genre.toLowerCase())
+    : null;
   return {
     appid,
     name,
     coverUrl: asHttpsUrl(row.cover_url),
-    genres: asStringArray(row.genres).map((genre) => genre.toLowerCase()),
+    genres: override ?? importedGenres,
+    ...('genres_override' in row ? { importedGenres, genresOverride: override } : {}),
+    ...('rawg_checked_at' in row ? { rawgCheckedAt: asIsoDate(row.rawg_checked_at) } : {}),
+    ...(typeof row.steam_imported === 'boolean' ? { steamImported: row.steam_imported } : {}),
     playtimeMinutes: asNonNegativeInt(row.playtime) ?? 0,
     addedAt: asNonEmptyString(row.created_at, 64) ?? new Date(0).toISOString(),
     lastPlayedAt: asIsoDate(row.last_played_at),
@@ -40,7 +47,10 @@ export const toGameRow = (game: Game): Record<string, unknown> => ({
   appid: game.appid,
   name: game.name,
   cover_url: game.coverUrl,
-  genres: game.genres,
+  genres: game.importedGenres ?? game.genres,
+  ...(game.genresOverride !== undefined ? { genres_override: game.genresOverride } : {}),
+  ...(game.rawgCheckedAt !== undefined ? { rawg_checked_at: game.rawgCheckedAt } : {}),
+  ...(game.steamImported !== undefined ? { steam_imported: game.steamImported } : {}),
   playtime: game.playtimeMinutes,
   created_at: game.addedAt,
   last_played_at: game.lastPlayedAt,

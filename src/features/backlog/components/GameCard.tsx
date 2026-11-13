@@ -10,8 +10,9 @@ import { formatPlaytime } from '@/shared/utils/format';
 import type { Game } from '../types/Game';
 import { genreLabel } from '../utils/genres';
 import { GameCover } from './GameCover';
+import { useFlexibleGameRows } from '@/features/backlog/hooks/useFlexibleGameRows';
 
-/** Фиксированная высота карточки: FlatList считает позиции без замеров (getItemLayout). */
+/** Default rows are fixed; narrow screens and large fonts use measured rows. */
 export const GAME_CARD_HEIGHT = 88;
 
 export interface GameCardProps {
@@ -22,22 +23,27 @@ export interface GameCardProps {
 /** Карточка игры в списке: обложка, название, время в игре, жанры (UI2). */
 export const GameCard = memo(function GameCard({ game, onPress }: GameCardProps) {
   const styles = useThemedStyles(createStyles);
+  const flexible = useFlexibleGameRows();
 
   const playtime = formatPlaytime(game.playtimeMinutes);
   const genres = game.genres.slice(0, 3).map(genreLabel).join(', ');
   return (
     <Card
       onPress={() => onPress(game.appid)}
-      style={styles.card}
+      style={[styles.card, flexible && styles.flexibleCard]}
       accessibilityLabel={`${game.name}. ${playtime}${genres ? `. ${genres}` : ''}`}
       accessibilityHint="Откроет подробности об игре"
     >
-      <GameCover name={game.name} uri={game.coverUrl} style={styles.cover} />
+      <GameCover
+        name={game.name}
+        uri={game.coverUrl}
+        style={[styles.cover, flexible && styles.smallCover]}
+      />
       <View style={styles.text}>
-        <Text style={styles.name} numberOfLines={2}>
+        <Text style={styles.name} numberOfLines={flexible ? undefined : 2}>
           {game.name}
         </Text>
-        <Text style={styles.meta} numberOfLines={1}>
+        <Text style={styles.meta} numberOfLines={flexible ? undefined : 1}>
           {playtime}
           {genres ? ` · ${genres}` : ''}
         </Text>
@@ -56,7 +62,9 @@ const createStyles = (colors: ThemeColors) =>
     },
     // Пропорции обложки Steam header.jpg (460×215).
     cover: { width: 120, height: 56, borderRadius: radius.button },
-    text: { flex: 1, gap: 4 },
+    flexibleCard: { height: 'auto', minHeight: GAME_CARD_HEIGHT, alignItems: 'flex-start' },
+    smallCover: { width: 64, height: 40 },
+    text: { flex: 1, minWidth: 0, gap: 4 },
     name: { color: colors.textPrimary, fontSize: fontSize.body, fontWeight: '600' },
     meta: { color: colors.textSecondary, fontSize: fontSize.caption + 2 },
   });

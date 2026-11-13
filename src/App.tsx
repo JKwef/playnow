@@ -8,11 +8,13 @@ import { Appearance, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { linking } from '@/navigation/linking';
+import { bindAccountQueries } from '@/features/auth/services/accountQueries';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { createNavigationTheme } from '@/navigation/theme';
 import { LoadingIndicator } from '@/shared/components/LoadingIndicator';
 import { ThemeProvider } from '@/shared/theme/ThemeProvider';
 import { useTheme } from '@/shared/theme/useTheme';
+import { PickerSyncBridge } from '@/features/picker/hooks/usePickerSync';
 
 // Веб-версия (проверка на ПК): вход через Steam идёт во всплывающем окне, которое
 // возвращается на /auth. Этот вызов передаёт результат открывшему окну и закрывает
@@ -35,10 +37,13 @@ export default function App() {
       }),
   );
 
+  useEffect(() => bindAccountQueries(queryClient), [queryClient]);
+
   return (
     <SafeAreaProvider>
       <ThemeProvider>
         <QueryClientProvider client={queryClient}>
+          <PickerSyncBridge />
           <ThemedNavigation />
         </QueryClientProvider>
       </ThemeProvider>

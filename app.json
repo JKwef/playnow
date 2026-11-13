@@ -9,9 +9,6 @@
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#0C1513",
     "plugins": [
-      "expo-secure-store",
-      "expo-status-bar",
-      "expo-web-browser",
       [
         "expo-splash-screen",
         {
@@ -20,7 +17,10 @@
           "imageWidth": 160,
           "resizeMode": "contain"
         }
-      ]
+      ],
+      ["expo-secure-store", { "faceIDPermission": false }],
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "ios": {
       "supportsTablet": true,

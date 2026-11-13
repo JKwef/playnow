@@ -1,7 +1,7 @@
 import type { ThemeColors } from '@/shared/constants/colors';
 import { useThemedStyles } from '@/shared/theme/useTheme';
 import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { spacing } from '@/shared/constants';
@@ -12,7 +12,7 @@ export interface ScreenProps {
   withTopInset?: boolean;
   /** Центрировать содержимое по вертикали (экраны входа, загрузки, пустые состояния). */
   centered?: boolean;
-  /** Постоянно доступное главное действие над нижней безопасной зоной. */
+  /** Закреплённое действие; в низком окне или при крупном шрифте прокручивается. */
   footer?: ReactNode;
 }
 
@@ -22,6 +22,8 @@ export interface ScreenProps {
  */
 export function Screen({ children, withTopInset = false, centered = false, footer }: ScreenProps) {
   const styles = useThemedStyles(createStyles);
+  const { height, fontScale } = useWindowDimensions();
+  const inlineFooter = height < 600 || fontScale > 1.3;
 
   const edges: Edge[] = withTopInset
     ? ['top', 'bottom', 'left', 'right']
@@ -29,12 +31,16 @@ export function Screen({ children, withTopInset = false, centered = false, foote
   return (
     <SafeAreaView style={styles.safeArea} edges={edges}>
       <ScrollView
+        testID="screen-content-scroll"
         contentContainerStyle={[styles.content, centered && styles.centered]}
         keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+        keyboardDismissMode="on-drag"
       >
         {children}
+        {inlineFooter && footer !== undefined && <View style={styles.inlineFooter}>{footer}</View>}
       </ScrollView>
-      {footer !== undefined && <View style={styles.footer}>{footer}</View>}
+      {!inlineFooter && footer !== undefined && <View style={styles.footer}>{footer}</View>}
     </SafeAreaView>
   );
 }
@@ -51,6 +57,7 @@ const createStyles = (colors: ThemeColors) =>
       gap: spacing.sm,
     },
     centered: { justifyContent: 'center' },
+    inlineFooter: { paddingTop: spacing.sm, borderTopWidth: 1, borderColor: colors.border },
     footer: {
       width: '100%',
       maxWidth: 640,

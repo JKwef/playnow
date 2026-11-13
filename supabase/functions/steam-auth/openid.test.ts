@@ -7,6 +7,7 @@ import {
   extractSteamId,
   isAllowedRedirect,
   redeemCode,
+  redeemCodeOnce,
   sha256Base64Url,
   signCode,
   STEAM_OPENID_ENDPOINT,
@@ -167,4 +168,42 @@ Deno.test('isAllowedRedirect: локальная веб-версия, но не 
   assertEquals(isAllowedRedirect('https://localhost:8081/auth', prefixes), false);
   assertEquals(isAllowedRedirect('http://localhost:8081/other', prefixes), false);
   assertEquals(isAllowedRedirect('http://evil.com/auth', prefixes), false);
+});
+
+Deno.test('redeemCodeOnce: concurrent instances share a claim; replay is rejected', async () => {
+  const code = await signCode(STEAM_ID, await sha256Base64Url(verifier), KEY, NOW);
+  const claimed = new Set<string>();
+  const claim = async (digest: string): Promise<boolean> => {
+    if (claimed.has(digest)) return false;
+    claimed.add(digest);
+    return true;
+  };
+  const exchange = () => redeemCodeOnce(code, verifier, KEY, NOW, claim);
+  const results = await Promise.allSettled([exchange(), exchange()]);
+  assertEquals(results.filter((r) => r.status === 'fulfilled').length, 1);
+  await assertRejects(exchange, SteamAuthError, 'использован');
+});
+
+Deno.test('redeemCodeOnce: validation precedes claim; storage failure fails closed', async () => {
+  const code = await signCode(STEAM_ID, await sha256Base64Url(verifier), KEY, NOW);
+  let calls = 0;
+  const claim = async () => {
+    calls += 1;
+    return true;
+  };
+  await assertRejects(() => redeemCodeOnce(code, 'x'.repeat(43), KEY, NOW, claim), SteamAuthError);
+  await assertRejects(
+    () => redeemCodeOnce(code, verifier, KEY, NOW + CODE_TTL_SECONDS, claim),
+    SteamAuthError,
+  );
+  await assertRejects(() => redeemCodeOnce(code, verifier, 'wrong', NOW, claim), SteamAuthError);
+  assertEquals(calls, 0);
+  await assertRejects(
+    () =>
+      redeemCodeOnce(code, verifier, KEY, NOW, () => Promise.reject(new Error('db unavailable'))),
+    Error,
+    'db unavailable',
+  );
+  const second = await signCode(STEAM_ID, await sha256Base64Url(verifier), KEY, NOW);
+  assertEquals(code === second, false);
 });

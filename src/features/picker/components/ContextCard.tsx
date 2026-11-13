@@ -1,7 +1,7 @@
 import type { ThemeColors } from '@/shared/constants/colors';
 import { useThemedStyles } from '@/shared/theme/useTheme';
 import { memo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { fontSize, radius, spacing } from '@/shared/constants';
 
@@ -12,6 +12,7 @@ export interface ContextCardProps {
   matchingCount: number;
   selected: boolean;
   onPress: (id: ContextId) => void;
+  disabled?: boolean;
 }
 
 export const ContextCard = memo(function ContextCard({
@@ -19,15 +20,25 @@ export const ContextCard = memo(function ContextCard({
   matchingCount,
   selected,
   onPress,
+  disabled = false,
 }: ContextCardProps) {
   const styles = useThemedStyles(createStyles);
+  const { width, fontScale } = useWindowDimensions();
+  const singleColumn = width < 360 || fontScale > 1.3;
 
   return (
     <Pressable
       onPress={() => onPress(context.id)}
-      style={({ pressed }) => [styles.card, selected && styles.selected, pressed && styles.pressed]}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.card,
+        singleColumn && styles.singleColumn,
+        selected && styles.selected,
+        pressed && styles.pressed,
+      ]}
       accessibilityRole="radio"
-      accessibilityState={{ checked: selected }}
+      aria-checked={selected}
+      accessibilityState={{ checked: selected, disabled }}
       accessibilityLabel={`${context.title}. ${context.description}. Доступно игр: ${matchingCount}`}
       accessibilityHint="Выберет настроение для подбора"
     >
@@ -39,7 +50,10 @@ export const ContextCard = memo(function ContextCard({
           {selected && <View style={styles.radioDot} />}
         </View>
       </View>
-      <Text style={styles.title}>{context.title}</Text>
+      <Text style={styles.title}>
+        {selected ? '✓ ' : ''}
+        {context.title}
+      </Text>
       <Text style={styles.description}>{context.description}</Text>
       <Text style={[styles.count, selected && styles.countSelected]}>
         {matchingCount > 0 ? `${matchingCount} в подборе` : 'Пока нет игр'}
@@ -53,16 +67,17 @@ const createStyles = (colors: ThemeColors) =>
     card: {
       flexBasis: '45%',
       flexGrow: 1,
-      minWidth: 128,
-      minHeight: 168,
+      minWidth: 112,
+      minHeight: 136,
       padding: spacing.sm,
-      gap: 8,
+      gap: 4,
       borderRadius: radius.card,
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border,
     },
     selected: { borderColor: colors.secondary, backgroundColor: colors.mintMuted },
+    singleColumn: { flexBasis: '100%', minHeight: 0 },
     pressed: { opacity: 0.8 },
     top: {
       flexDirection: 'row',

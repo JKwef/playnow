@@ -11,6 +11,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  database:
+    name: Database isolation, pagination and concurrent code redemption
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start local database and apply migrations
+        run: |
+          supabase db start
+          supabase migration up
+      - name: Account isolation, cascades and redemption permissions
+        run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f supabase/tests/rls.sql
+      - name: Concurrent redemption across database connections
+        run: python3 scripts/test-redemption.py
+      - name: Game progression, exclusions, import preservation and ownership
+        run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f supabase/tests/preferences.sql
+      - name: Complete paginated libraries including manual games
+        run: node scripts/test-library.mjs
+      - name: Picker sync revision checks, account isolation and deletion
+        run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f supabase/tests/picker_sync.sql
+
   functions:
     name: Edge Functions types and tests
     runs-on: ubuntu-latest
@@ -61,6 +87,15 @@ jobs:
 
       - name: Unit tests
         run: npm test -- --ci
+
+      - name: SDK dependency compatibility
+        run: npx expo install --check
+
+      - name: Resolved public config and physical-device preview profiles
+        run: npm run check:mobile-config
+
+      - name: Bundle Android, iOS and web
+        run: npm run export:acceptance
 
   android-config:
     name: Android config (prebuild)

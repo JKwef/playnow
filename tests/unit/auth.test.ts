@@ -164,3 +164,64 @@ test('store: errors become messages, cancel is silent', async () => {
   await s2.getState().signIn();
   assertEquals([s2.getState().status, s2.getState().error], ['signedOut', null]);
 });
+
+test('store: delayed session restoration cannot sign back in after logout', async () => {
+  let finish!: (value: unknown) => void;
+  const pending = new Promise((resolve) => {
+    finish = resolve;
+  });
+  const fa = fakeAuth(null);
+  const store = createAuthStore({
+    getAuthClient: () => ({ ...fa.client, getSession: () => pending }) as never,
+    getSteamAuth: () => svc(null).s,
+  });
+  const restore = store.getState().restoreSession();
+  await store.getState().signOut();
+  finish({ data: { session: session('76561197960287930') }, error: null });
+  await restore;
+  expect(store.getState().status).toBe('signedOut');
+  expect(store.getState().user).toBeNull();
+});
+
+test('store: logout hides the account before slow session cleanup finishes', async () => {
+  let finish!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const fa = fakeAuth(session('76561197960287930'));
+  const store = createAuthStore({
+    getAuthClient: () => ({ ...fa.client, signOut: () => pending }) as never,
+    getSteamAuth: () => svc(null).s,
+  });
+  await store.getState().restoreSession();
+  const logout = store.getState().signOut();
+  expect(store.getState().user).toBeNull();
+  fa.emit('SIGNED_IN', session('76561197960287930'));
+  expect(store.getState().user).toBeNull();
+  finish();
+  await logout;
+});
+
+test('store: late Steam result after logout is never saved as a session', async () => {
+  let finish!: (value: {
+    kind: 'success';
+    tokens: { accessToken: string; refreshToken: string };
+  }) => void;
+  const pending = new Promise<{
+    kind: 'success';
+    tokens: { accessToken: string; refreshToken: string };
+  }>((resolve) => {
+    finish = resolve;
+  });
+  const fa = fakeAuth(null);
+  const store = createAuthStore({
+    getAuthClient: () => fa.client as never,
+    getSteamAuth: () => ({ signIn: () => pending }),
+  });
+  const login = store.getState().signIn();
+  await store.getState().signOut();
+  finish({ kind: 'success', tokens: { accessToken: 'a', refreshToken: 'r' } });
+  await login;
+  expect(fa.calls).toEqual(['signOut']);
+  expect(store.getState().user).toBeNull();
+});

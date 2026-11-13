@@ -3,16 +3,15 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useEffect } from 'react';
 
 import { AddGameScreen } from '@/features/backlog/screens/AddGameScreen';
-import { BacklogScreen } from '@/features/backlog/screens/BacklogScreen';
 import { BacklogLoadingScreen } from '@/features/backlog/screens/BacklogLoadingScreen';
 import { GameDetailsScreen } from '@/features/backlog/screens/GameDetailsScreen';
 import { LoginScreen } from '@/features/auth/screens/LoginScreen';
-import { PickerScreen } from '@/features/picker/screens/PickerScreen';
 import { PostponedScreen } from '@/features/picker/screens/PostponedScreen';
 import { ResultScreen } from '@/features/picker/screens/ResultScreen';
-import { SettingsScreen } from '@/features/settings/screens/SettingsScreen';
 import { LoadingIndicator } from '@/shared/components/LoadingIndicator';
-import { BrandHeader } from '@/shared/components/BrandLogo';
+import { MainNavigator } from '@/navigation/MainNavigator';
+import { DemoScreen } from '@/features/demo/screens/DemoScreen';
+import { RecommendationHistoryScreen } from '@/features/picker/screens/RecommendationHistoryScreen';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
@@ -60,25 +59,24 @@ export function RootNavigator() {
       }}
     >
       {status !== 'signedIn' ? (
-        <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+        <Stack.Group>
+          <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Demo" component={DemoScreen} options={{ title: 'Пример подбора' }} />
+        </Stack.Group>
       ) : (
-        // Первый экран после входа — загрузка бэклога: он сам перейдёт на Picker.
+        // После загрузки библиотеки открываются основные вкладки.
         <Stack.Group>
           <Stack.Screen
             name="BacklogLoading"
             component={BacklogLoadingScreen}
             options={{ headerShown: false, gestureEnabled: false }}
           />
-          <Stack.Screen
-            name="Picker"
-            component={PickerScreen}
-            options={{ title: 'Quaeso', headerTitle: () => <BrandHeader /> }}
-          />
+          <Stack.Screen name="Main" component={MainNavigator} options={{ headerShown: false }} />
           <Stack.Screen name="Result" component={ResultScreen} options={{ title: 'Ваша игра' }} />
           <Stack.Screen
-            name="Backlog"
-            component={BacklogScreen}
-            options={{ title: 'Библиотека' }}
+            name="RecommendationHistory"
+            component={RecommendationHistoryScreen}
+            options={{ title: 'История рекомендаций' }}
           />
           <Stack.Screen
             name="GameDetails"
@@ -94,11 +92,6 @@ export function RootNavigator() {
             name="Postponed"
             component={PostponedScreen}
             options={{ title: 'Отложенные' }}
-          />
-          <Stack.Screen
-            name="Settings"
-            component={SettingsScreen}
-            options={{ title: 'Настройки' }}
           />
         </Stack.Group>
       )}

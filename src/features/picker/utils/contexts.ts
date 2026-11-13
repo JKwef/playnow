@@ -4,12 +4,10 @@ import type { ContextId, PickerContext } from '../types';
 export const PICKER_CONTEXTS: readonly PickerContext[] = [
   {
     id: 'short-session',
-    title: 'На полчаса',
-    description: 'Открой новую головоломку или аркаду',
-    icon: '⏱️',
+    title: 'Головоломки и аркады',
+    description: 'Задачи, аркады и казуальные игры',
+    icon: '🧩',
     genres: ['puzzle', 'arcade', 'casual'],
-    // По ТЗ: playtime < 60 мин — игры, в которые ещё не успели засесть надолго.
-    maxPlaytimeMinutes: 60,
   },
   {
     id: 'addictive',

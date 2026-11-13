@@ -34,13 +34,15 @@ export const useSignOut = (deps: SignOutDeps = defaultDeps): UseSignOutResult =>
   const requestSignOut = useCallback(async () => {
     const confirmed = await confirm({
       title: 'Выйти из аккаунта?',
-      message: 'Список игр на этом устройстве будет удалён. Чтобы вернуться, войдите через Steam.',
+      message:
+        'Локальные данные, включая несинхронизированные выбор и откладывание, будут удалены. Сохранённая версия в аккаунте останется. Чтобы вернуться, войдите через Steam.',
       confirmLabel: 'Выйти',
       destructive: true,
     });
     if (!confirmed) return;
 
     setIsSigningOut(true);
+    await queryClient.cancelQueries();
     // Сначала выходим: навигатор сразу убирает экраны с данными и они не перезапросят бэклог.
     await signOut();
     queryClient.clear();

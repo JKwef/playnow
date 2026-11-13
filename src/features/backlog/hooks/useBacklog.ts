@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo } from 'react';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { accountRevision } from '@/shared/services/accountScope';
 
 import { createBacklogCache, type BacklogCache } from '../services/backlogCache';
 import { backlogErrorCode, backlogErrorMessage } from '../services/backlogErrors';
@@ -39,6 +40,7 @@ export type GenresStatus =
   | 'idle'
   | 'loading'
   | 'done'
+  | 'partial'
   /** RAWG недоступен: у части игр нет жанров, догрузим при следующем обновлении. */
   | 'error';
 
@@ -67,6 +69,8 @@ export interface UseBacklogResult {
   genresRemaining: number | null;
   /** Ручное обновление (FR2.5). */
   refresh: () => Promise<void>;
+  /** Resume unfinished metadata only; never imports Steam again. */
+  retryGenres: () => Promise<void>;
 }
 
 /**
@@ -81,18 +85,27 @@ export const useBacklog = (deps: BacklogDeps = defaultDeps): UseBacklogResult =>
   const signOut = useAuth((state) => state.signOut);
   const queryClient = useQueryClient();
   const { library, enrichment, cache } = deps;
+  const revision = accountRevision(steamId ?? '');
+  const isCurrent = useCallback(
+    () =>
+      steamId !== null &&
+      useAuth.getState().user?.steamId === steamId &&
+      accountRevision(steamId) === revision,
+    [steamId, revision],
+  );
 
   const saveToCache = useCallback(
     async (snapshot: BacklogSnapshot) => {
+      if (!isCurrent()) return;
+      queryClient.setQueryData(backlogKeys.cache(steamId ?? ''), snapshot);
       try {
         await cache.write(steamId ?? '', snapshot);
-        queryClient.setQueryData(backlogKeys.cache(steamId ?? ''), snapshot);
       } catch (error) {
         // Не смогли сохранить кэш (например, нет места) — свежие данные всё равно показываем.
         console.warn('backlog cache write failed', error);
       }
     },
-    [cache, queryClient, steamId],
+    [cache, queryClient, steamId, isCurrent],
   );
 
   const cached = useQuery({
@@ -104,8 +117,17 @@ export const useBacklog = (deps: BacklogDeps = defaultDeps): UseBacklogResult =>
 
   const remote = useQuery({
     queryKey: backlogKeys.remote(steamId ?? ''),
-    queryFn: async (): Promise<BacklogSnapshot> => {
-      const snapshot = await library().fetchLibrary();
+    queryFn: async ({ signal }): Promise<BacklogSnapshot> => {
+      if (!isCurrent()) throw new Error('Account changed');
+      await queryClient.cancelQueries({ queryKey: ['backlog', 'enrich', steamId ?? ''] });
+      signal.throwIfAborted();
+      const snapshot = await library().fetchLibrary(signal);
+      signal.throwIfAborted();
+      if (!isCurrent()) throw new Error('Account changed');
+      queryClient.setQueryData(
+        backlogKeys.enrichProgress(steamId ?? ''),
+        snapshot.metadataRemaining ?? null,
+      );
       await saveToCache(snapshot);
       return snapshot;
     },
@@ -121,32 +143,46 @@ export const useBacklog = (deps: BacklogDeps = defaultDeps): UseBacklogResult =>
   /*
    * Жанры из RAWG (FR2.3) догружаются партиями после каждого свежего импорта.
    * Это отдельный query, а не эффект: react-query не запустит загрузку дважды,
-   * даже если хук смонтирован на двух экранах, и доведёт её до конца при уходе с экрана.
+   * даже если хук смонтирован на двух экранах. Прерванная обработка сохраняет остаток
+   * и продолжается отдельным действием без повторного импорта Steam.
    */
-  const remoteUpdatedAt = remote.data?.updatedAt ?? null;
+  const remoteUpdatedAt = (remote.data ?? cached.data)?.updatedAt ?? null;
   const progressKey = backlogKeys.enrichProgress(steamId ?? '');
   const genres = useQuery({
     queryKey: backlogKeys.enrich(steamId ?? '', remoteUpdatedAt ?? ''),
-    queryFn: async (): Promise<number> =>
+    queryFn: async ({ signal }): Promise<number> =>
       runEnrichment({
         service: enrichment(),
+        signal,
         onBatch: async (batch) => {
+          signal.throwIfAborted();
+          if (!isCurrent()) throw new Error('Account changed');
           queryClient.setQueryData<number>(progressKey, batch.remaining);
-          const current = queryClient.getQueryData<BacklogSnapshot>(
+          const currentRemote = queryClient.getQueryData<BacklogSnapshot>(
             backlogKeys.remote(steamId ?? ''),
           );
-          if (current === undefined || batch.games.length === 0) return;
-          const merged = mergeGames(current, batch.games);
-          queryClient.setQueryData(backlogKeys.remote(steamId ?? ''), merged);
+          const current =
+            currentRemote ??
+            queryClient.getQueryData<BacklogSnapshot | null>(backlogKeys.cache(steamId ?? ''));
+          if (!current) return;
+          const merged = {
+            ...mergeGames(current, batch.games),
+            metadataRemaining: batch.remaining,
+          };
+          if (currentRemote) queryClient.setQueryData(backlogKeys.remote(steamId ?? ''), merged);
           await saveToCache(merged);
         },
       }),
-    enabled: steamId !== null && remoteUpdatedAt !== null,
+    enabled:
+      steamId !== null &&
+      remote.data !== undefined &&
+      !remote.isFetching &&
+      remote.data.metadataRemaining !== 0,
     staleTime: Infinity,
-    // Повтор в цикле уже есть: следующая попытка будет при следующем импорте.
+    // После сбоя пользователь продолжает с последней сохранённой партии.
     retry: false,
   });
-  const progress = useQuery({
+  const progress = useQuery<number | null>({
     queryKey: progressKey,
     queryFn: () => null,
     enabled: false,
@@ -170,6 +206,10 @@ export const useBacklog = (deps: BacklogDeps = defaultDeps): UseBacklogResult =>
   const refresh = useCallback(async () => {
     await remote.refetch();
   }, [remote]);
+  const retryGenres = useCallback(async () => {
+    if (!isCurrent()) return;
+    await genres.refetch({ cancelRefetch: false });
+  }, [genres, isCurrent]);
 
   return useMemo(() => {
     const snapshot = remote.data ?? cached.data ?? undefined;
@@ -177,34 +217,38 @@ export const useBacklog = (deps: BacklogDeps = defaultDeps): UseBacklogResult =>
     let status: BacklogStatus = 'ready';
     if (snapshot === undefined) status = isLoading && errorCode === null ? 'loading' : 'error';
     let genresStatus: GenresStatus = 'idle';
+    const remaining = progress.data ?? genres.data ?? snapshot?.metadataRemaining ?? null;
     if (genres.isFetching) genresStatus = 'loading';
     else if (genres.isError) genresStatus = 'error';
-    else if (genres.isSuccess) genresStatus = 'done';
+    else if (remaining === 0) genresStatus = 'done';
+    else if (remaining !== null && remaining > 0) genresStatus = 'partial';
     return {
       status,
       games: snapshot?.games,
       updatedAt: snapshot?.updatedAt ?? null,
-      isFromCache: remote.data === undefined && cached.data !== undefined && cached.data !== null,
+      isFromCache: snapshot !== undefined && (remote.isError || remote.data === undefined),
       isRefreshing: remote.isFetching,
       errorCode,
       errorMessage: remote.error ? backlogErrorMessage(remote.error) : null,
       genresStatus,
-      genresRemaining: genres.data ?? progress.data ?? null,
+      genresRemaining: remaining,
       refresh,
+      retryGenres,
     };
   }, [
     remote.data,
     remote.isPending,
     remote.isFetching,
     remote.error,
+    remote.isError,
     cached.data,
     cached.isPending,
     errorCode,
     genres.isFetching,
     genres.isError,
-    genres.isSuccess,
     genres.data,
     progress.data,
     refresh,
+    retryGenres,
   ]);
 };

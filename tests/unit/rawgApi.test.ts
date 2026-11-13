@@ -124,5 +124,6 @@ test('runEnrichment loops until 0, stops on no progress, caps rounds', async () 
     onBatch: () => {},
     maxRounds: 3,
   });
-  assertEquals(i, 3);
+  // A repeated remaining count with no progress should not waste more requests.
+  assertEquals(i, 2);
 });

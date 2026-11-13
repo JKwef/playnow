@@ -22,16 +22,22 @@ export const linking: LinkingOptions<RootStackParamList> = {
   config: {
     screens: {
       Login: 'login',
-      Picker: '',
-      Backlog: 'games',
+      Demo: 'demo',
+      RecommendationHistory: 'recommendations',
+      Main: { screens: { Picker: '', Backlog: 'games', Settings: 'settings' } },
       GameDetails: {
         path: 'games/:appid',
         parse: { appid: parseAppId },
       },
       AddGame: 'games/new',
       Postponed: 'postponed',
-      Result: 'result/:contextId',
-      Settings: 'settings',
+      Result: {
+        path: 'result/:contextId',
+        parse: {
+          installedOnly: (value: string) =>
+            value === 'true' ? true : value === 'false' ? false : value,
+        },
+      },
     },
   },
 };

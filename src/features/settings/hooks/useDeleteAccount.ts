@@ -1,9 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { createBacklogCache, type BacklogCache } from '@/features/backlog/services/backlogCache';
 import { confirmAction, type ConfirmOptions } from '@/shared/utils/confirm';
+import { clearAccountData } from '@/shared/services/accountData';
+import { accountRevision } from '@/shared/services/accountScope';
 
 import { deleteAccountOnServer } from '../services/deleteAccount';
 
@@ -15,7 +17,8 @@ export interface DeleteAccountDeps {
   cache: BacklogCache;
   confirm: (options: ConfirmOptions) => Promise<boolean>;
   /** Удаляет аккаунт на сервере. Бросает при ошибке. */
-  deleteAccount: () => Promise<void>;
+  deleteAccount: (steamId: string) => Promise<void>;
+  clearLocalData?: (steamId: string) => Promise<void>;
 }
 
 const defaultDeps: DeleteAccountDeps = {
@@ -44,44 +47,65 @@ export const useDeleteAccount = (deps: DeleteAccountDeps = defaultDeps): UseDele
   const steamId = useAuth((state) => state.user?.steamId ?? null);
   const queryClient = useQueryClient();
   const [isDeleting, setIsDeleting] = useState(false);
+  const inFlight = useRef(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const { cache, confirm, deleteAccount } = deps;
+  const { cache, confirm, deleteAccount, clearLocalData = clearAccountData } = deps;
 
   const requestDeleteAccount = useCallback(async () => {
-    if (isDeleting) return;
-    const confirmed = await confirm({
-      title: 'Удалить аккаунт?',
-      message:
-        'Аккаунт Quaeso и список ваших игр будут удалены навсегда. Отменить это действие нельзя.',
-      confirmLabel: 'Удалить',
-      destructive: true,
-    });
-    if (!confirmed) return;
-
-    setIsDeleting(true);
-    setErrorMessage(null);
+    if (inFlight.current || steamId === null) return;
+    inFlight.current = true;
+    const revision = accountRevision(steamId);
     try {
-      await deleteAccount();
-    } catch (error) {
-      console.warn('delete account failed', error);
-      setErrorMessage(DELETE_ACCOUNT_ERROR_MESSAGE);
-      setIsDeleting(false);
-      return;
-    }
+      const confirmed = await confirm({
+        title: 'Удалить аккаунт?',
+        message:
+          'Аккаунт Quaeso и список ваших игр будут удалены навсегда. Отменить это действие нельзя.',
+        confirmLabel: 'Удалить',
+        destructive: true,
+      });
+      if (
+        !confirmed ||
+        useAuth.getState().user?.steamId !== steamId ||
+        accountRevision(steamId) !== revision
+      )
+        return;
 
-    // Аккаунта на сервере больше нет: выходим. Навигатор сам уберёт экраны с данными.
-    await signOut();
-    queryClient.clear();
-    if (steamId !== null) {
+      setIsDeleting(true);
+      setErrorMessage(null);
       try {
-        await cache.clear(steamId);
+        await deleteAccount(steamId);
       } catch (error) {
-        // Аккаунт уже удалён; не удалось стереть только локальную копию.
-        console.warn('backlog cache clear after account deletion failed', error);
+        console.warn('delete account failed', error);
+        setErrorMessage(DELETE_ACCOUNT_ERROR_MESSAGE);
+        setIsDeleting(false);
+        return;
       }
+
+      // Аккаунта на сервере больше нет: выходим. Навигатор сам уберёт экраны с данными.
+      const filters = {
+        predicate: (query: { queryKey: readonly unknown[] }) => query.queryKey.includes(steamId),
+      };
+      await queryClient.cancelQueries(filters);
+      if (useAuth.getState().user?.steamId === steamId && accountRevision(steamId) === revision) {
+        await signOut();
+        queryClient.clear();
+      } else {
+        queryClient.removeQueries(filters);
+      }
+      if (steamId !== null) {
+        try {
+          await Promise.all([cache.clear(steamId), clearLocalData(steamId)]);
+        } catch (error) {
+          // Аккаунт уже удалён; не удалось стереть только локальную копию.
+          console.warn('backlog cache clear after account deletion failed', error);
+          setErrorMessage('Аккаунт удалён. Не удалось очистить локальные данные на устройстве.');
+        }
+      }
+      setIsDeleting(false);
+    } finally {
+      inFlight.current = false;
     }
-    setIsDeleting(false);
-  }, [cache, confirm, deleteAccount, isDeleting, queryClient, signOut, steamId]);
+  }, [cache, confirm, deleteAccount, clearLocalData, queryClient, signOut, steamId]);
 
   return { requestDeleteAccount, isDeleting, errorMessage };
 };

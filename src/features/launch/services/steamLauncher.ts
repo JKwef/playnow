@@ -1,9 +1,9 @@
 import { isManualAppId } from '@/features/backlog/utils/manualGame';
 
 export type LaunchErrorCode =
-  /** Нет приложения, которое умеет steam:// (FR5.2). */
-  | 'steam_not_installed'
-  /** Игра добавлена вручную без appid Steam: запускать нечего. */
+  /** Система не смогла открыть ссылку; причина не устанавливается. */
+  | 'open_failed'
+  /** У игры нет Steam appid для внешней ссылки. */
   | 'manual_game';
 
 export class LaunchError extends Error {
@@ -17,33 +17,35 @@ export class LaunchError extends Error {
   }
 }
 
-/** Минимум от expo-linking: в тестах подменяется. */
+/** Минимальный контракт открытия ссылки; в тестах подменяется. */
 export interface LinkingLike {
   openURL: (url: string) => Promise<unknown>;
 }
 
 export interface SteamLauncher {
-  /** Открывает steam://run/<appid> (FR5.1). Бросает LaunchError. */
-  launch: (appid: number) => Promise<void>;
+  /** Передаёт ссылку системе с учётом устройства. Бросает LaunchError. */
+  launch: (appid: number, target?: 'mobile' | 'desktop') => Promise<void>;
 }
 
 export const steamRunUrl = (appid: number): string => `steam://run/${appid}`;
+export const steamStoreUrl = (appid: number): string =>
+  `https://store.steampowered.com/app/${appid}/`;
+export const isDesktopBrowser = (userAgent: string): boolean =>
+  /Windows NT|Macintosh|X11|CrOS/.test(userAgent) && !/Mobile|Android|iPhone|iPad/.test(userAgent);
 
 /**
- * Запуск игры через deep link Steam (FR5). Сначала не спрашиваем canOpenURL:
- * на Android 11+ он без объявленных в манифесте <queries> отвечает false даже при
- * установленном Steam (а в Expo Go манифест не наш). openURL сам отклоняет промис,
- * если ссылку некому открыть, — это и есть «Steam не установлен» на iOS и Android (FR5.3).
+ * Mobile opens the store page; desktop hands a link to the local Steam client.
+ * Resolution means only that the system accepted the URL, never proof of gameplay.
  */
 export const createSteamLauncher = (linking: LinkingLike): SteamLauncher => ({
-  launch: async (appid) => {
+  launch: async (appid, target = 'desktop') => {
     if (!Number.isSafeInteger(appid) || appid <= 0 || isManualAppId(appid)) {
       throw new LaunchError('manual_game', `appid ${appid} не из Steam`);
     }
     try {
-      await linking.openURL(steamRunUrl(appid));
+      await linking.openURL(target === 'mobile' ? steamStoreUrl(appid) : steamRunUrl(appid));
     } catch (error) {
-      throw new LaunchError('steam_not_installed', 'Не удалось открыть steam://', {
+      throw new LaunchError('open_failed', 'Не удалось открыть внешнюю ссылку', {
         cause: error,
       });
     }
@@ -51,9 +53,6 @@ export const createSteamLauncher = (linking: LinkingLike): SteamLauncher => ({
 });
 
 export const LAUNCH_ERROR_MESSAGES: Record<LaunchErrorCode, string> = {
-  steam_not_installed: 'Steam не установлен. Установите Steam и попробуйте снова',
+  open_failed: 'Не удалось открыть ссылку. Попробуйте страницу Steam или скопируйте ссылку.',
   manual_game: 'Игра добавлена вручную без ссылки на Steam, поэтому открыть её в Steam нельзя',
 };
-
-/** Страница со ссылками на мобильное приложение Steam. */
-export const STEAM_INSTALL_URL = 'https://store.steampowered.com/mobile';

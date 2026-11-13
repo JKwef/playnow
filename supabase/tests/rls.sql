@@ -32,11 +32,19 @@ grant execute on function pg_temp.expect_error(text, text) to anon, authenticate
 set local role anon;
 select pg_temp.expect_error('select * from public.games', 'anon не читает games');
 select pg_temp.expect_error('select * from public.users', 'anon не читает users');
+select pg_temp.expect_error('select * from public.steam_auth_redemptions', 'anon не читает погашения');
+select pg_temp.expect_error(
+  $q$select public.claim_steam_auth_code(repeat('x', 43), now() + interval '1 minute')$q$,
+  'anon не погашает коды');
 reset role;
 
 -- ---------------------------------------------------------------- пользователь A
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}';
+select pg_temp.expect_error('select * from public.steam_auth_redemptions', 'A не читает погашения');
+select pg_temp.expect_error(
+  $q$select public.claim_steam_auth_code(repeat('x', 43), now() + interval '1 minute')$q$,
+  'A не погашает коды');
 
 do $$
 begin
@@ -73,6 +81,22 @@ update public.games set name = 'hacked' where id = '10000000-0000-0000-0000-0000
 delete from public.games where id = '10000000-0000-0000-0000-00000000000b';
 
 -- Дубликат appid и мусорные значения режутся ограничениями.
+update public.games set genres_override = '{puzzle,arcade}' where appid = 440;
+do $$ begin
+  if (select genres_override from public.games where appid = 440) <> array['puzzle','arcade'] then
+    raise exception 'FAIL: не удалось сохранить исправленные жанры';
+  end if;
+  if (select playtime from public.games where appid = 440) <> 42 then
+    raise exception 'FAIL: исправление жанра изменило playtime';
+  end if;
+end $$;
+select pg_temp.expect_error(
+  $q$update public.games set genres_override = '{}' where appid = 440$q$,
+  'пустой пользовательский жанр запрещён');
+select pg_temp.expect_error(
+  $q$update public.games set genres_override = array[null]::text[] where appid = 440$q$,
+  'null в списке жанров запрещён');
+
 select pg_temp.expect_error(
   $q$insert into public.games (user_id, appid, name) values ('00000000-0000-0000-0000-00000000000a', 730, 'dup')$q$,
   'дубликат appid в бэклоге');
@@ -107,13 +131,45 @@ do $$ begin
 end $$;
 
 -- ---------------------------------------------------------------- каскад
+-- Steam/RAWG import changes only imported columns, never the correction.
+update public.games set genres = '{action}', playtime = 43
+  where user_id = '00000000-0000-0000-0000-00000000000a' and appid = 440;
+do $$ begin
+  if (select genres_override from public.games where user_id = '00000000-0000-0000-0000-00000000000a' and appid = 440) <> array['puzzle','arcade'] then
+    raise exception 'FAIL: импорт затёр исправление жанра';
+  end if;
+end $$;
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}';
+do $$
+begin
+  if (select count(*) from public.games) <> 1 then raise exception 'FAIL: B видит чужие игры'; end if;
+  if exists (select 1 from public.users where steam_id = '76561197960287930') then raise exception 'FAIL: B видит A'; end if;
+  if exists (select 1 from public.play_sessions) then raise exception 'FAIL: B видит сессии A'; end if;
+  update public.games set name = 'hacked by B' where appid = 730;
+  if found then raise exception 'FAIL: B меняет игру A'; end if;
+  update public.games set genres_override = '{rpg}' where appid = 440;
+  if found then raise exception 'FAIL: B меняет жанры A'; end if;
+  delete from public.games where appid = 730;
+  if found then raise exception 'FAIL: B удаляет игру A'; end if;
+end $$;
+select pg_temp.expect_error(
+  $q$insert into public.games (user_id, appid, name) values ('00000000-0000-0000-0000-00000000000a', 11, 'x')$q$,
+  'B не вставляет игры A');
+reset role;
+
 delete from auth.users where id = '00000000-0000-0000-0000-00000000000a';
 do $$ begin
-  if exists (select 1 from public.games where user_id = '00000000-0000-0000-0000-00000000000a')
+  if exists (select 1 from public.users where id = '00000000-0000-0000-0000-00000000000a')
+     or exists (select 1 from public.games where user_id = '00000000-0000-0000-0000-00000000000a')
      or exists (select 1 from public.play_sessions where user_id = '00000000-0000-0000-0000-00000000000a') then
     raise exception 'FAIL: данные A не удалились каскадом';
   end if;
   raise notice 'ok: удаление аккаунта чистит все данные';
+  if (select count(*) from public.games where user_id = '00000000-0000-0000-0000-00000000000b') <> 1 then
+    raise exception 'FAIL: удаление A затронуло B';
+  end if;
 end $$;
 
 rollback;
