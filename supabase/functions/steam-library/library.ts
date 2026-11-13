@@ -1,6 +1,13 @@
 /** Keep each page below the Data API cap; appid is immutable and unique per account. */
 export const LIBRARY_PAGE_SIZE = 500;
 
+/** A real Steam appid alone does not prove ownership or imported playtime. */
+export const withSteamImportSource = <T extends { appid: number }>(
+  games: T[],
+  ownedAppids: ReadonlySet<number>,
+): (T & { steam_imported: boolean })[] =>
+  games.map((game) => ({ ...game, steam_imported: ownedAppids.has(game.appid) }));
+
 export const readLibrary = async <T extends { appid: number }>(
   fetchPage: (afterAppid: number, limit: number) => Promise<{ data: T[] | null; error: unknown }>,
 ): Promise<T[]> => {

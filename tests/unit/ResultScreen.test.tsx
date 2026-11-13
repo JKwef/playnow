@@ -19,6 +19,14 @@ const mockPicker = {
   errorMessage: null,
   isRetrying: false,
   refresh: jest.fn(),
+  reasons: ['Выбрана по указанным условиям'],
+  isSeriesExhausted: false,
+  restart: jest.fn(),
+  emptyReason: 'Нет игр под выбранные условия',
+  canRelaxGenres: false,
+  metadataIncomplete: false,
+  retryMetadata: jest.fn(),
+  isRetryingMetadata: false,
 };
 const mockRestore = jest.fn(async (_appid: number) => undefined);
 jest.mock('@/features/picker/hooks/useGamePicker', () => ({ useGamePicker: () => mockPicker }));
@@ -38,13 +46,16 @@ jest.mock('@/shared/components/Screen', () => ({
 
 const props = {
   route: { params: { contextId: 'action' } },
-  navigation: { goBack: jest.fn(), navigate: jest.fn() },
+  navigation: { goBack: jest.fn(), navigate: jest.fn(), replace: jest.fn() },
 } as unknown as RootStackScreenProps<'Result'>;
 beforeEach(() => {
   jest.clearAllMocks();
   mockPicker.status = 'ready';
   mockPicker.game = mockGame;
   mockPicker.postponedCount = 0;
+  mockPicker.isSeriesExhausted = false;
+  mockPicker.canRelaxGenres = false;
+  mockPicker.metadataIncomplete = false;
   mockPicker.postpone.mockImplementation(async () => {
     mockPicker.status = 'empty';
     mockPicker.game = null;
@@ -77,4 +88,53 @@ test('failed undo stays visible and can be retried', async () => {
   expect(screen.getByRole('button', { name: 'Отменить откладывание' })).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: 'Отменить откладывание' }));
   expect(screen.queryByText(/«Последняя игра» отложена/)).toBeNull();
+});
+
+test('the last result announces series exhaustion before a user starts the next round', async () => {
+  mockPicker.isSeriesExhausted = true;
+  const screen = await render(<ResultScreen {...props} />);
+  expect(screen.getByText(/Новый круг начнётся только по нажатию/)).toBeTruthy();
+  expect(mockPicker.restart).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole('button', { name: 'Начать новый круг' }));
+  expect(mockPicker.restart).toHaveBeenCalledTimes(1);
+  expect(mockPicker.next).not.toHaveBeenCalled();
+});
+
+test('empty-result actions retry metadata, open the library, and relax genres explicitly without changing mode', async () => {
+  mockPicker.status = 'empty';
+  mockPicker.game = null;
+  mockPicker.metadataIncomplete = true;
+  mockPicker.canRelaxGenres = true;
+  const screen = await render(
+    <ResultScreen
+      {...props}
+      route={{
+        ...props.route,
+        params: { contextId: 'action', mode: 'continue', genreFilter: 'context' },
+      }}
+    />,
+  );
+  await fireEvent.press(screen.getByRole('button', { name: 'Повторить загрузку метаданных' }));
+  expect(mockPicker.retryMetadata).toHaveBeenCalledTimes(1);
+  expect(mockPicker.refresh).not.toHaveBeenCalled();
+  await fireEvent.press(
+    screen.getByRole('button', { name: 'Проверить статусы и исключения в библиотеке' }),
+  );
+  expect(props.navigation.navigate).toHaveBeenCalledWith('Backlog');
+  await fireEvent.press(screen.getByRole('button', { name: 'Любая игра без фильтра жанров' }));
+  expect(props.navigation.replace).toHaveBeenCalledWith('Result', {
+    contextId: 'action',
+    mode: 'continue',
+    genreFilter: 'any',
+  });
+});
+
+test('invalid deep-link conditions are rejected instead of silently choosing another mode', async () => {
+  const screen = await render(
+    <ResultScreen
+      {...props}
+      route={{ ...props.route, params: { contextId: 'action', mode: 'invalid' as never } }}
+    />,
+  );
+  expect(screen.getByText('Неизвестные условия подбора')).toBeTruthy();
 });

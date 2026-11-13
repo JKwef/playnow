@@ -44,14 +44,18 @@ export const mergeGames = (snapshot: BacklogSnapshot, updated: Game[]): BacklogS
     games: snapshot.games.map((game) => {
       const update = byAppid.get(game.appid);
       if (!update) return game;
+      const enriched = {
+        ...update,
+        ...(game.steamImported !== undefined ? { steamImported: game.steamImported } : {}),
+      };
       // A batch started before a manual correction must not undo that correction.
       if (game.genresOverride !== undefined)
         return {
-          ...update,
+          ...enriched,
           genresOverride: game.genresOverride,
           genres: game.genresOverride ?? update.importedGenres ?? update.genres,
         };
-      return update;
+      return enriched;
     }),
   };
 };

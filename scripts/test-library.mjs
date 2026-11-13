@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 
-import { readLibrary } from '../supabase/functions/steam-library/library.ts';
+import { readLibrary, withSteamImportSource } from '../supabase/functions/steam-library/library.ts';
 
 const databaseUrl = 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
 const schema = `qa_library_${randomUUID().replaceAll('-', '')}`;
@@ -38,6 +38,15 @@ try {
     assert.equal(games.length, count);
     assert.equal(new Set(games.map((game) => game.appid)).size, count);
     if (count > 0) assert.equal(games.at(-1).appid, 2000000001);
+    const owned = new Set(
+      games
+        .filter((game) => game.appid !== 620 && game.appid < 2000000000)
+        .map((game) => game.appid),
+    );
+    const tagged = withSteamImportSource(games, owned);
+    if (count > 0) assert.equal(tagged.at(-1).steam_imported, false);
+    if (count > 620) assert.equal(tagged.find((game) => game.appid === 620).steam_imported, false);
+    assert.equal(tagged.filter((game) => game.steam_imported).length, owned.size);
     process.stdout.write(`PASS: ${count} games, including manual games, no duplicates\n`);
   }
 } finally {

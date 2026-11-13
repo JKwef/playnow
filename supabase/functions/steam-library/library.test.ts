@@ -1,6 +1,22 @@
 import { assertEquals, assertRejects } from 'jsr:@std/assert@1';
 
-import { LIBRARY_PAGE_SIZE, readLibrary } from './library.ts';
+import { LIBRARY_PAGE_SIZE, readLibrary, withSteamImportSource } from './library.ts';
+
+Deno.test(
+  'only the current Steam response confirms imported history, including manual real-appid games',
+  () => {
+    const rows = [{ appid: 730 }, { appid: 620 }, { appid: 2000000001 }];
+    assertEquals(
+      withSteamImportSource(rows, new Set([730])).map((row) => row.steam_imported),
+      [true, false, false],
+    );
+    assertEquals(
+      withSteamImportSource(rows, new Set([730, 620])).map((row) => row.steam_imported),
+      [true, true, false],
+    );
+    assertEquals(rows, [{ appid: 730 }, { appid: 620 }, { appid: 2000000001 }]);
+  },
+);
 
 for (const count of [0, 1, 500, 1500]) {
   Deno.test(

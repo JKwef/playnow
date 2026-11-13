@@ -1,11 +1,10 @@
 import type { ThemeColors } from '@/shared/constants/colors';
 import { useThemedStyles } from '@/shared/theme/useTheme';
-import { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useBacklog } from '@/features/backlog/hooks/useBacklog';
 import { useGamePreferences } from '@/features/backlog/hooks/useGamePreferences';
-import { isBlockedByPreference } from '@/features/backlog/types/GamePreference';
 import { BacklogStatusNotice } from '@/features/backlog/components/BacklogStatusNotice';
 import type { RootStackScreenProps } from '@/navigation/types';
 import { Button } from '@/shared/components/Button';
@@ -14,9 +13,10 @@ import { spacing } from '@/shared/constants';
 
 import { ContextCard } from '../components/ContextCard';
 import { useBlacklist } from '../hooks/useBlacklist';
-import type { ContextId } from '../types';
+import { usePickerSelection } from '../hooks/usePickerSelection';
+import { PICKER_MODE_LABELS, type PickerMode } from '../types';
 import { PICKER_CONTEXTS } from '../utils/contexts';
-import { matchesContext } from '../utils/pickGame';
+import { filterCandidates } from '../utils/pickGame';
 
 export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
   const styles = useThemedStyles(createStyles);
@@ -26,28 +26,25 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
   const blacklist = useBlacklist();
   const { postponed, isLoading: isBlacklistLoading } = blacklist;
   const preferences = useGamePreferences();
-  const [selection, setSelection] = useState<ContextId | null>(null);
+  const settings = usePickerSelection();
+  const { mode, contextId: selected } = settings.selection;
   const counts = useMemo(
     () =>
       new Map(
         PICKER_CONTEXTS.map((context) => [
           context.id,
-          (games ?? []).filter(
-            (game) =>
-              !postponed.has(game.appid) &&
-              !isBlockedByPreference(preferences.preferences.get(game.appid)) &&
-              matchesContext(game, context),
-          ).length,
+          filterCandidates(games ?? [], context, {
+            exclude: new Set(postponed.keys()),
+            preferences: preferences.preferences,
+            mode,
+          }).length,
         ]),
       ),
-    [games, postponed, preferences.preferences],
+    [games, postponed, preferences.preferences, mode],
   );
-  const selected =
-    selection ??
-    PICKER_CONTEXTS.find((context) => (counts.get(context.id) ?? 0) > 0)?.id ??
-    'short-session';
   const count = counts.get(selected) ?? 0;
-  const loading = status === 'loading' || isBlacklistLoading || preferences.isLoading;
+  const loading =
+    status === 'loading' || isBlacklistLoading || preferences.isLoading || !settings.isReady;
 
   return (
     <Screen
@@ -59,21 +56,24 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
               loading ||
               preferences.isUnavailable ||
               !!blacklist.errorMessage ||
-              games === undefined ||
-              count === 0
+              games === undefined
             }
-            onPress={() => navigation.navigate('Result', { contextId: selected })}
+            onPress={() =>
+              navigation.navigate('Result', { contextId: selected, mode, genreFilter: 'context' })
+            }
           />
           <Text style={styles.hint} accessibilityLiveRegion="polite">
             {status === 'error' && games === undefined
               ? 'Повтори загрузку библиотеки выше.'
-              : loading
-                ? 'Подбор станет доступен после загрузки.'
-                : count > 0
-                  ? 'Не попадём в настроение? Можно выбрать другой вариант.'
-                  : genresStatus === 'loading'
-                    ? 'Определяем жанры. Подходящие игры скоро появятся.'
-                    : 'Пока нет подходящих игр. Попробуй другое настроение, верни отложенные игры или продолжи загрузку жанров.'}
+              : preferences.isUnavailable || blacklist.errorMessage
+                ? 'Повтори загрузку статусов и отложенных игр выше.'
+                : loading
+                  ? 'Подбор станет доступен после загрузки.'
+                  : count > 0
+                    ? 'Не попадём в настроение? Можно выбрать другой вариант.'
+                    : genresStatus === 'loading'
+                      ? 'Определяем жанры. Подходящие игры скоро появятся.'
+                      : 'Под выбранные условия пока нет игр. Открой результат, чтобы увидеть причины и доступные действия.'}
           </Text>
         </View>
       }
@@ -85,6 +85,34 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
         </Text>
         <Text style={styles.subtitle}>Выбери настроение. Остальное — за Quaeso.</Text>
       </View>
+      <View style={styles.modes} accessibilityRole="radiogroup" accessibilityLabel="Режим подбора">
+        {(['new', 'continue'] as const).map((value: PickerMode) => (
+          <Pressable
+            key={value}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: mode === value, disabled: !settings.isReady }}
+            accessibilityLabel={PICKER_MODE_LABELS[value]}
+            disabled={!settings.isReady}
+            onPress={() => settings.setMode(value)}
+            style={[styles.mode, mode === value && styles.modeSelected]}
+          >
+            <Text style={styles.modeText}>
+              {mode === value ? '● ' : '○ '}
+              {PICKER_MODE_LABELS[value]}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={styles.subtitle}>
+        {mode === 'new'
+          ? 'Сначала отмеченные «Не начинал», затем игры без статуса с нулевым временем.'
+          : 'Сначала отмеченные «Играю», затем игры без статуса с ненулевым временем.'}
+      </Text>
+      {settings.error && (
+        <Text accessibilityRole="alert" style={styles.noticeText}>
+          {settings.error}
+        </Text>
+      )}
       <View style={styles.libraryStatus}>
         <View style={styles.statusDot} />
         <Text style={styles.libraryText}>
@@ -137,7 +165,8 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
             context={context}
             matchingCount={counts.get(context.id) ?? 0}
             selected={selected === context.id}
-            onPress={setSelection}
+            onPress={settings.setContext}
+            disabled={!settings.isReady}
           />
         ))}
       </View>
@@ -178,6 +207,18 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     intro: { gap: 10, paddingTop: 8 },
+    modes: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+    mode: {
+      flexGrow: 1,
+      minHeight: 48,
+      justifyContent: 'center',
+      padding: spacing.sm,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    modeSelected: { borderColor: colors.secondary, backgroundColor: colors.mintMuted },
+    modeText: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
     eyebrow: { color: colors.secondary, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
     title: {
       color: colors.textPrimary,

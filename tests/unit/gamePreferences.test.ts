@@ -64,7 +64,7 @@ const fixture = (rows: unknown[] = [], account: string | null = A) => {
 test('progression defaults to unspecified; only explicit completion and exclusion block picking', () => {
   const games = [makeGame({ appid: 1, genres: ['action'], playtimeMinutes: 61 })];
   const options = { exclude: new Set<number>(), random: () => 0 };
-  expect(pickGame(games, findContext('action')!, options)?.appid).toBe(1);
+  expect(pickGame(games, findContext('action')!, { ...options, mode: 'continue' })?.appid).toBe(1);
   for (const progressStatus of ['unspecified', 'not_started', 'playing', 'completed'] as const) {
     for (const excluded of [false, true]) {
       const preference = { progressStatus, excluded };
@@ -73,6 +73,7 @@ test('progression defaults to unspecified; only explicit completion and exclusio
       expect(
         pickGame(games, findContext('action')!, {
           ...options,
+          mode: progressStatus === 'not_started' ? 'new' : 'continue',
           preferences: new Map([[1, preference]]),
         }) === null,
       ).toBe(blocked);

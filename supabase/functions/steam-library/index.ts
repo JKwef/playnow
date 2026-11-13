@@ -16,7 +16,7 @@ import { readApiKey, requireEnv } from '../_shared/apiKeys.ts';
 import { getRequestUser } from '../_shared/auth.ts';
 import { json, preflight, UPSTREAM_TIMEOUT_MS } from '../_shared/http.ts';
 import { buildOwnedGamesUrl, parseOwnedGames } from './steam.ts';
-import { readLibrary } from './library.ts';
+import { readLibrary, withSteamImportSource } from './library.ts';
 
 const SUPABASE_URL = requireEnv('SUPABASE_URL');
 const SERVICE_ROLE_KEY = readApiKey('SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SECRET_KEYS');
@@ -95,8 +95,9 @@ Deno.serve(async (req) => {
           .order('appid', { ascending: true })
           .limit(limit),
     );
+    const ownedAppids = new Set(result.games.map((game) => game.appid));
     return json(200, {
-      games: data,
+      games: withSteamImportSource(data, ownedAppids),
       remaining: data.filter((game) => game.rawg_checked_at === null).length,
     });
   } catch {

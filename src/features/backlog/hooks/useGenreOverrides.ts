@@ -42,7 +42,16 @@ export const useGenreOverrides = (
         if (current) {
           const updated = {
             ...current,
-            games: current.games.map((item) => (item.appid === appid ? game : item)),
+            games: current.games.map((item) =>
+              item.appid === appid
+                ? {
+                    ...game,
+                    ...(item.steamImported !== undefined
+                      ? { steamImported: item.steamImported }
+                      : {}),
+                  }
+                : item,
+            ),
           };
           if (remote) client.setQueryData(backlogKeys.remote(steamId), updated);
           client.setQueryData(backlogKeys.cache(steamId), updated);

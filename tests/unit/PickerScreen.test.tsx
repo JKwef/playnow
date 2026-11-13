@@ -1,7 +1,9 @@
-import { fireEvent, render } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ReactNode } from 'react';
 
 import { PickerScreen } from '@/features/picker/screens/PickerScreen';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import type { RootStackScreenProps } from '@/navigation/types';
 
 import { makeGame } from './fixtures/game';
@@ -49,8 +51,22 @@ const renderPicker = async () => {
     navigation: { navigate },
     route: { key: 'picker', name: 'Picker' },
   } as unknown as RootStackScreenProps<'Picker'>;
-  return { ...(await render(<PickerScreen {...props} />)), navigate };
+  const screen = await render(<PickerScreen {...props} />);
+  await waitFor(() =>
+    expect(screen.getByRole('radio', { name: 'Новое' }).props.accessibilityState.disabled).toBe(
+      false,
+    ),
+  );
+  return { ...screen, navigate };
 };
+
+beforeEach(async () => {
+  useAuth.setState({ user: null, status: 'signedOut' });
+  await AsyncStorage.clear();
+  mockPreferences.preferences = new Map();
+  useAuth.setState({ user: { steamId: '76561197960287930' }, status: 'signedIn' });
+});
+afterEach(() => useAuth.setState({ user: null, status: 'signedOut' }));
 
 it('selects a mood before navigating and counts only available games', async () => {
   const screen = await renderPicker();
@@ -59,17 +75,26 @@ it('selects a mood before navigating and counts only available games', async () 
   expect(screen.navigate).not.toHaveBeenCalled();
   expect(action.props.accessibilityState.checked).toBe(true);
   await fireEvent.press(screen.getByRole('button', { name: 'Подобрать игру  →' }));
-  expect(screen.navigate).toHaveBeenCalledWith('Result', { contextId: 'action' });
+  expect(screen.navigate).toHaveBeenCalledWith('Result', {
+    contextId: 'action',
+    mode: 'new',
+    genreFilter: 'context',
+  });
 });
 
-it('disables selection submission when the chosen mood has no candidates', async () => {
+it('preserves an empty context and opens its diagnosis instead of silently replacing it', async () => {
   const screen = await renderPicker();
   await fireEvent.press(screen.getByRole('radio', { name: /Погрузиться в мир/ }));
   expect(
     screen.getByRole('button', { name: 'Подобрать игру  →' }).props.accessibilityState.disabled,
-  ).toBe(true);
-  expect(screen.getByText(/Пока нет подходящих игр/)).toBeTruthy();
-  expect(screen.navigate).not.toHaveBeenCalled();
+  ).toBe(false);
+  expect(screen.getByText(/Под выбранные условия пока нет игр/)).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: 'Подобрать игру  →' }));
+  expect(screen.navigate).toHaveBeenCalledWith('Result', {
+    contextId: 'story',
+    mode: 'new',
+    genreFilter: 'context',
+  });
 });
 
 it('counts exclude completed and permanently excluded games without removing library records', async () => {

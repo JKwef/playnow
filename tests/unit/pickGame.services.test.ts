@@ -4,7 +4,6 @@ import {
   pickGame,
   priorityOf,
   rankCandidates,
-  TOP_CANDIDATES,
 } from '@/features/picker/utils/pickGame';
 import { findContext, PICKER_CONTEXTS } from '@/features/picker/utils/contexts';
 import { createBlacklistService, POSTPONE_DAYS } from '@/features/picker/services/blacklist';
@@ -30,9 +29,10 @@ test('4 contexts as in FR4.1', () => {
   );
   assertEquals(findContext('nope'), undefined);
 });
-test('matchesContext: any genre + playtime limit for 30 min', () => {
+test('matchesContext: any genre, with no session-duration inference', () => {
   assert(matchesContext(g(1, ['puzzle'], 59), ctx('short-session')));
-  assert(!matchesContext(g(1, ['puzzle'], 60), ctx('short-session')));
+  assert(matchesContext(g(1, ['puzzle'], 60), ctx('short-session')));
+  assert(matchesContext(g(1, ['puzzle'], 61), ctx('short-session')));
   assert(!matchesContext(g(1, ['rpg'], 0), ctx('short-session')));
   assert(matchesContext(g(1, ['roguelike', 'indie'], 5000), ctx('addictive')));
   assert(matchesContext(g(1, ['narrative'], 0), ctx('story')));
@@ -41,10 +41,10 @@ test('matchesContext: any genre + playtime limit for 30 min', () => {
 test('priority tiers', () => {
   assertEquals(
     [0, 1, 119, 120, 5000].map((p) => priorityOf(g(1, [], p))),
-    [0, 1, 1, 2, 2],
+    [1, null, null, null, null],
   );
 });
-test('rank: unplayed first, then <120, then rest; excluded removed', () => {
+test('rank: explicit playing first in Continue; excluded removed', () => {
   const games = [
     g(1, ['action'], 500),
     g(2, ['action'], 30),
@@ -56,14 +56,20 @@ test('rank: unplayed first, then <120, then rest; excluded removed', () => {
     const ranked = rankCandidates(games, ctx('action'), {
       exclude: new Set([5]),
       random: seededRandom(s / 20),
+      mode: 'continue',
+      preferences: new Map([[3, { progressStatus: 'playing', excluded: false }]]),
     });
+    assertEquals(ranked[0]?.appid, 3);
     assertEquals(
-      ranked.map((x) => x.appid),
-      [3, 2, 1],
+      ranked
+        .slice(1)
+        .map((x) => x.appid)
+        .sort(),
+      [1, 2],
     );
   }
 });
-test('pick only from top 10, all of top reachable, randomized', () => {
+test('pick only from eligible new games, all eligible games are reachable', () => {
   const games = [
     ...Array.from({ length: 12 }, (_, i) => g(i + 1, ['action'], 0)),
     ...Array.from({ length: 30 }, (_, i) => g(100 + i, ['action'], 999)),
@@ -78,7 +84,7 @@ test('pick only from top 10, all of top reachable, randomized', () => {
     seen.add(picked.appid);
   }
   assert(seen.size >= 10, `variety ${seen.size}`);
-  assertEquals(TOP_CANDIDATES, 10);
+  assertEquals(seen.size, 12);
 });
 test('pick null when nothing matches; deterministic per seed; fast on 500', () => {
   assertEquals(

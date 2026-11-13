@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { GenreFilter, PickerMode } from '@/features/picker/types';
 
 /**
  * Все маршруты приложения и их параметры.
@@ -11,7 +12,7 @@ export type RootStackParamList = {
   // Авторизованная зона
   BacklogLoading: undefined;
   Picker: undefined;
-  Result: { contextId: string };
+  Result: { contextId: string; mode?: PickerMode; genreFilter?: GenreFilter };
   Backlog: undefined;
   GameDetails: { appid: number };
   AddGame: undefined;

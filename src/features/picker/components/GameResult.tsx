@@ -8,30 +8,28 @@ import type { Game } from '@/features/backlog/types/Game';
 import { fontSize, radius, spacing } from '@/shared/constants';
 import { formatPlaytime } from '@/shared/utils/format';
 
-export function GameResult({ game }: { game: Game }) {
+export function GameResult({ game, reasons }: { game: Game; reasons: readonly string[] }) {
   const styles = useThemedStyles(createStyles);
 
   return (
     <View style={styles.card}>
       <GameCover name={game.name} uri={game.coverUrl} style={styles.cover} />
       <View style={styles.body}>
-        <Text style={styles.eyebrow}>ТВОЙ ВЫБОР НА СЕГОДНЯ</Text>
+        <Text style={styles.eyebrow}>ПРЕДЛОЖЕНИЕ ПО ВЫБРАННЫМ УСЛОВИЯМ</Text>
         <Text accessibilityRole="header" style={styles.title}>
           {game.name}
         </Text>
         <GenreChips genres={game.genres} />
         <View style={styles.reason}>
-          <Text style={styles.reasonTitle}>
-            {game.playtimeMinutes === 0
-              ? 'Самое время начать'
-              : game.playtimeMinutes < 120
-                ? 'Дай этой игре ещё один шанс'
-                : 'Знакомый мир, новое приключение'}
-          </Text>
+          <Text style={styles.reasonTitle}>Почему эта игра</Text>
+          {reasons.map((reason) => (
+            <Text key={reason} style={styles.playtime}>
+              {reason}
+            </Text>
+          ))}
           <Text style={styles.playtime}>
-            {game.playtimeMinutes === 0
-              ? 'По данным Steam, ты ещё не проводил время в этой игре.'
-              : `Всего в игре: ${formatPlaytime(game.playtimeMinutes)}`}
+            Время в библиотеке:{' '}
+            {game.playtimeMinutes === 0 ? '0 мин' : formatPlaytime(game.playtimeMinutes)}
           </Text>
         </View>
       </View>

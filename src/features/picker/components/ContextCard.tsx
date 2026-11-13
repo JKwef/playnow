@@ -12,6 +12,7 @@ export interface ContextCardProps {
   matchingCount: number;
   selected: boolean;
   onPress: (id: ContextId) => void;
+  disabled?: boolean;
 }
 
 export const ContextCard = memo(function ContextCard({
@@ -19,15 +20,17 @@ export const ContextCard = memo(function ContextCard({
   matchingCount,
   selected,
   onPress,
+  disabled = false,
 }: ContextCardProps) {
   const styles = useThemedStyles(createStyles);
 
   return (
     <Pressable
       onPress={() => onPress(context.id)}
+      disabled={disabled}
       style={({ pressed }) => [styles.card, selected && styles.selected, pressed && styles.pressed]}
       accessibilityRole="radio"
-      accessibilityState={{ checked: selected }}
+      accessibilityState={{ checked: selected, disabled }}
       accessibilityLabel={`${context.title}. ${context.description}. Доступно игр: ${matchingCount}`}
       accessibilityHint="Выберет настроение для подбора"
     >

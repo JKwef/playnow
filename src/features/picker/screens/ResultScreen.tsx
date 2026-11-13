@@ -18,7 +18,7 @@ import { GameResult } from '../components/GameResult';
 import { useGamePicker } from '../hooks/useGamePicker';
 import { useBlacklist } from '../hooks/useBlacklist';
 import type { PostponeDuration } from '../services/blacklist';
-import type { PickerContext } from '../types';
+import { isPickerMode, PICKER_MODE_LABELS, type PickerContext, type PickerMode } from '../types';
 import { findContext } from '../utils/contexts';
 
 /** Сообщение, если код ошибки не пришёл (неожиданный сбой). */
@@ -29,20 +29,37 @@ export function ResultScreen({ route, navigation }: RootStackScreenProps<'Result
   const styles = useThemedStyles(createStyles);
 
   const context = findContext(route.params.contextId);
-  if (context === undefined) {
+  const mode = route.params.mode ?? 'new';
+  const genreFilter = route.params.genreFilter ?? 'context';
+  if (
+    context === undefined ||
+    !isPickerMode(mode) ||
+    (genreFilter !== 'context' && genreFilter !== 'any')
+  ) {
     // Например, устаревшая ссылка playnow://result/<id>.
     return (
       <Screen centered>
-        <Text style={styles.title}>Неизвестный контекст</Text>
+        <Text style={styles.title}>Неизвестные условия подбора</Text>
         <Button label="К выбору контекста" onPress={() => navigation.navigate('Picker')} />
       </Screen>
     );
   }
   return (
     <PickedGame
+      key={`${context.id}:${mode}:${genreFilter}`}
       context={context}
+      mode={mode}
+      ignoreGenres={genreFilter === 'any'}
       onBack={() => navigation.goBack()}
       onOpenPostponed={() => navigation.navigate('Postponed')}
+      onOpenLibrary={() => navigation.navigate('Backlog')}
+      onChangeGenres={(relaxed) =>
+        navigation.replace('Result', {
+          contextId: context.id,
+          mode,
+          genreFilter: relaxed ? 'any' : 'context',
+        })
+      }
     />
   );
 }
@@ -51,9 +68,21 @@ interface PickedGameProps {
   context: PickerContext;
   onBack: () => void;
   onOpenPostponed: () => void;
+  mode: PickerMode;
+  ignoreGenres: boolean;
+  onOpenLibrary: () => void;
+  onChangeGenres: (relaxed: boolean) => void;
 }
 
-function PickedGame({ context, onBack, onOpenPostponed }: PickedGameProps) {
+function PickedGame({
+  context,
+  mode,
+  ignoreGenres,
+  onBack,
+  onOpenPostponed,
+  onOpenLibrary,
+  onChangeGenres,
+}: PickedGameProps) {
   const styles = useThemedStyles(createStyles);
 
   const [isPostponing, setIsPostponing] = useState(false);
@@ -78,7 +107,17 @@ function PickedGame({ context, onBack, onOpenPostponed }: PickedGameProps) {
     errorMessage,
     isRetrying,
     refresh,
-  } = useGamePicker(context);
+    reasons,
+    isSeriesExhausted,
+    restart,
+    emptyReason,
+    canRelaxGenres,
+    metadataIncomplete,
+    metadataMessage,
+    libraryEmpty,
+    retryMetadata,
+    isRetryingMetadata,
+  } = useGamePicker(context, { mode, ignoreGenres });
   const { launch, isLaunching } = useLaunchGame();
   const signOut = useAuth((state) => state.signOut);
   const postponeGame = async (duration: PostponeDuration) => {
@@ -153,20 +192,65 @@ function PickedGame({ context, onBack, onOpenPostponed }: PickedGameProps) {
     return (
       <Screen centered>
         <Text accessibilityRole="header" style={styles.title}>
-          Нет игр под этот контекст. Попробуйте другой
+          {isSeriesExhausted ? 'Все подходящие игры в этой серии показаны' : emptyReason}
         </Text>
         <Text style={styles.secondary}>
-          Нужны игры с жанрами: {context.genres.map(genreLabel).join(', ')}
-          {context.maxPlaytimeMinutes !== undefined
-            ? ` и временем в игре меньше ${context.maxPlaytimeMinutes} мин`
-            : ''}
+          Режим «{PICKER_MODE_LABELS[mode]}».{' '}
+          {ignoreGenres
+            ? 'Фильтр жанров отключён'
+            : `Жанры контекста: ${context.genres.map(genreLabel).join(', ')}`}
           .{postponedCount > 0 ? ` Отложено игр: ${postponedCount}.` : ''}
           {excludedCount > 0
             ? ` Пройдено или исключено: ${excludedCount}. Вернуть игры можно из их карточек в библиотеке.`
             : ''}
         </Text>
         {feedback}
-        <Button label="Выбрать другой контекст" onPress={onBack} />
+        {errorMessage && (
+          <Text accessibilityRole="alert" style={styles.error}>
+            {errorMessage}
+          </Text>
+        )}
+        {metadataMessage && (
+          <Text accessibilityLiveRegion="polite" style={styles.note}>
+            {metadataMessage}
+          </Text>
+        )}
+        {libraryEmpty && (
+          <Button
+            label={isRetrying ? 'Загружаем библиотеку…' : 'Повторить импорт библиотеки'}
+            disabled={isRetrying}
+            onPress={() => void refresh()}
+          />
+        )}
+        {isSeriesExhausted && <Button label="Начать новый круг" onPress={restart} />}
+        <Button label="Изменить режим или контекст" onPress={onBack} />
+        <Button
+          label="Проверить статусы и исключения в библиотеке"
+          variant="secondary"
+          onPress={onOpenLibrary}
+        />
+        {metadataIncomplete && (
+          <Button
+            label={isRetryingMetadata ? 'Загружаем жанры…' : 'Повторить загрузку метаданных'}
+            variant="secondary"
+            disabled={isRetryingMetadata}
+            onPress={() => void retryMetadata()}
+          />
+        )}
+        {canRelaxGenres && (
+          <Button
+            label="Любая игра без фильтра жанров"
+            variant="secondary"
+            onPress={() => onChangeGenres(true)}
+          />
+        )}
+        {ignoreGenres && (
+          <Button
+            label="Вернуть фильтр жанров"
+            variant="tertiary"
+            onPress={() => onChangeGenres(false)}
+          />
+        )}
         {postponedCount > 0 && (
           <Button label="Отложенные игры" variant="tertiary" onPress={onOpenPostponed} />
         )}
@@ -178,9 +262,21 @@ function PickedGame({ context, onBack, onOpenPostponed }: PickedGameProps) {
   return (
     <Screen>
       <Text style={styles.context}>
-        {context.icon} {context.title}
+        {PICKER_MODE_LABELS[mode]} · {context.icon} {context.title}
       </Text>
-      <GameResult game={game} />
+      {ignoreGenres && (
+        <>
+          <Text style={styles.note}>
+            Любая игра без фильтра жанров. Режим и исключения сохранены.
+          </Text>
+          <Button
+            label="Вернуть фильтр жанров"
+            variant="tertiary"
+            onPress={() => onChangeGenres(false)}
+          />
+        </>
+      )}
+      <GameResult game={game} reasons={reasons} />
       <Button
         label={isLaunching ? 'Открываем Steam…' : 'Открыть в Steam'}
         accessibilityHint="Откроет Steam с этой игрой"
@@ -188,11 +284,15 @@ function PickedGame({ context, onBack, onOpenPostponed }: PickedGameProps) {
         onPress={() => void launch(game.appid)}
       />
       <Button
-        label="Показать другую игру"
+        label={isSeriesExhausted ? 'Начать новый круг' : 'Показать другую игру'}
         variant="secondary"
-        disabled={isLastOption || isPostponing}
-        accessibilityHint="Подберёт другую игру под этот контекст"
-        onPress={next}
+        disabled={isPostponing}
+        accessibilityHint={
+          isSeriesExhausted
+            ? 'Начнёт новую серию; игры могут повториться'
+            : 'Подберёт ещё не показанную игру под эти условия'
+        }
+        onPress={isSeriesExhausted ? restart : next}
       />
       <Text style={styles.note}>Не сейчас · отложить на этом устройстве</Text>
       <Button
@@ -208,6 +308,11 @@ function PickedGame({ context, onBack, onOpenPostponed }: PickedGameProps) {
         onPress={() => void postponeGame('week')}
       />
       {feedback}
+      {isSeriesExhausted && (
+        <Text accessibilityLiveRegion="polite" style={styles.note}>
+          Все подходящие игры в этой серии показаны. Новый круг начнётся только по нажатию кнопки.
+        </Text>
+      )}
       {isLastOption && <Text style={styles.note}>Это единственная подходящая игра</Text>}
       {manual && (
         <Text style={styles.note}>Игра добавлена вручную, поэтому открыть её в Steam нельзя</Text>

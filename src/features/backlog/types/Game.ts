@@ -10,6 +10,8 @@ export interface Game {
   importedGenres?: string[];
   genresOverride?: string[] | null;
   rawgCheckedAt?: string | null;
+  /** Confirmed against this user's current Steam import, never inferred from appid. */
+  steamImported?: boolean;
   /** Время в игре в минутах (playtime_forever). */
   playtimeMinutes: number;
   /** Когда игра появилась в бэклоге (ISO). Нужна для сортировки «по дате добавления». */
