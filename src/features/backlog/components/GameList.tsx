@@ -1,6 +1,6 @@
 import type { ThemeColors } from '@/shared/constants/colors';
 import { useThemeColors, useThemedStyles } from '@/shared/theme/useTheme';
-import { useCallback, type ReactElement } from 'react';
+import { useCallback, useState, type ReactElement } from 'react';
 import { FlatList, Platform, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { spacing } from '@/shared/constants';
@@ -17,6 +17,7 @@ export interface GameListProps {
   refreshing: boolean;
   onRefresh: () => void;
   ListEmptyComponent?: ReactElement;
+  ListHeaderComponent?: ReactElement;
 }
 
 const keyExtractor = (game: Game): string => String(game.appid);
@@ -32,9 +33,11 @@ export function GameList({
   refreshing,
   onRefresh,
   ListEmptyComponent,
+  ListHeaderComponent,
 }: GameListProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useThemeColors();
+  const [headerHeight, setHeaderHeight] = useState(0);
 
   const renderItem = useCallback(
     ({ item }: { item: Game }) => <GameCard game={item} onPress={onPressGame} />,
@@ -46,7 +49,18 @@ export function GameList({
       data={games}
       keyExtractor={keyExtractor}
       renderItem={renderItem}
-      getItemLayout={(_, index) => ({ length: ROW_HEIGHT, offset: ROW_HEIGHT * index, index })}
+      getItemLayout={(_, index) => ({
+        length: ROW_HEIGHT,
+        offset: headerHeight + ROW_HEIGHT * index,
+        index,
+      })}
+      ListHeaderComponent={
+        ListHeaderComponent ? (
+          <View onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
+            {ListHeaderComponent}
+          </View>
+        ) : undefined
+      }
       ItemSeparatorComponent={Separator}
       ListEmptyComponent={ListEmptyComponent}
       contentContainerStyle={styles.content}

@@ -2,6 +2,7 @@ import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 
 import { bindSupabaseAutoRefresh, getSupabase } from '@/shared/services/supabase';
+import { invalidateAccount } from '@/shared/services/accountScope';
 
 import { authErrorMessage, toAuthError } from '../services/authErrors';
 import { createDefaultSteamAuth } from '../services/defaultSteamAuth';
@@ -68,6 +69,8 @@ const userFromSession = (session: Session | null): AuthUser | null => {
 export const createAuthStore = (deps: AuthStoreDeps): UseBoundStore<StoreApi<AuthState>> =>
   create<AuthState>()((set, get) => {
     let subscribed = false;
+    let operation = 0;
+    let signingOut = false;
 
     /**
      * Подписка на события Supabase держит стор в синхроне с реальной сессией:
@@ -79,12 +82,15 @@ export const createAuthStore = (deps: AuthStoreDeps): UseBoundStore<StoreApi<Aut
       subscribed = true;
       deps.onClientReady?.();
       auth.onAuthStateChange((event, session) => {
+        if (signingOut) return;
         // Внутри колбэка нельзя ждать другие методы supabase.auth (возможен дедлок),
         // поэтому только синхронно обновляем стор.
         const user = userFromSession(session);
         if (user !== null) {
+          if (user.steamId !== get().user?.steamId) operation += 1;
           set({ status: 'signedIn', user, error: null });
         } else if (event === 'SIGNED_OUT' && get().status === 'signedIn') {
+          operation += 1;
           set({ status: 'signedOut', user: null });
         }
       });
@@ -96,20 +102,25 @@ export const createAuthStore = (deps: AuthStoreDeps): UseBoundStore<StoreApi<Aut
       error: null,
 
       restoreSession: async () => {
+        if (signingOut) return;
+        const currentOperation = ++operation;
         try {
           const auth = deps.getAuthClient();
           ensureSubscribed(auth);
           // Сессия читается из SecureStore. Без сети она тоже вернётся (оффлайн-режим NFR2),
           // а токен обновится, когда сеть появится.
           const { data, error } = await auth.getSession();
+          if (currentOperation !== operation) return;
           if (error) throw error;
           const user = userFromSession(data.session);
           if (user === null && data.session !== null) {
             // Сессия есть, но без steam_id: это не наш пользователь. Чистим локально.
             await auth.signOut({ scope: 'local' });
           }
+          if (currentOperation !== operation) return;
           set(user === null ? { status: 'signedOut', user: null } : { status: 'signedIn', user });
         } catch (error) {
+          if (currentOperation !== operation) return;
           console.warn('restoreSession failed', error);
           const authError = toAuthError(error);
           set({
@@ -122,12 +133,14 @@ export const createAuthStore = (deps: AuthStoreDeps): UseBoundStore<StoreApi<Aut
       },
 
       signIn: async () => {
-        if (get().status === 'signingIn') return; // защита от двойного нажатия
+        if (get().status === 'signingIn' || signingOut) return;
+        const currentOperation = ++operation;
         set({ status: 'signingIn', error: null });
         try {
           const auth = deps.getAuthClient();
           ensureSubscribed(auth);
           const result = await deps.getSteamAuth().signIn();
+          if (currentOperation !== operation) return;
           if (result.kind === 'cancelled') {
             set({ status: 'signedOut' });
             return;
@@ -137,6 +150,7 @@ export const createAuthStore = (deps: AuthStoreDeps): UseBoundStore<StoreApi<Aut
             access_token: result.tokens.accessToken,
             refresh_token: result.tokens.refreshToken,
           });
+          if (currentOperation !== operation) return;
           if (error) throw error;
           const user = userFromSession(data.session);
           if (user === null) {
@@ -145,12 +159,17 @@ export const createAuthStore = (deps: AuthStoreDeps): UseBoundStore<StoreApi<Aut
           }
           set({ status: 'signedIn', user, error: null });
         } catch (error) {
+          if (currentOperation !== operation) return;
           console.warn('signIn failed', error);
           set({ status: 'signedOut', user: null, error: authErrorMessage(error) });
         }
       },
 
       signOut: async () => {
+        operation += 1;
+        signingOut = true;
+        // Hide the account and invalidate work before waiting for storage/network.
+        set({ status: 'signedOut', user: null, error: null });
         try {
           // scope: 'local' — выходим на этом устройстве и не зависим от сети:
           // локальная сессия удаляется даже оффлайн.
@@ -158,6 +177,7 @@ export const createAuthStore = (deps: AuthStoreDeps): UseBoundStore<StoreApi<Aut
         } catch (error) {
           console.warn('signOut failed, clearing local state anyway', error);
         }
+        signingOut = false;
         set({ status: 'signedOut', user: null, error: null });
       },
     };
@@ -181,4 +201,9 @@ export const useAuth = createAuthStore({
   onClientReady: () => {
     unbindAutoRefresh ??= bindSupabaseAutoRefresh(getSupabase());
   },
+});
+
+useAuth.subscribe((state, previous) => {
+  const previousId = previous.user?.steamId;
+  if (previousId && previousId !== state.user?.steamId) invalidateAccount(previousId);
 });

@@ -35,8 +35,11 @@ const readErrorCode = async (response: Response): Promise<string | null> => {
 export const callFunction = async (
   deps: FunctionsClientDeps,
   name: string,
+  signal?: AbortSignal,
 ): Promise<Record<string, unknown>> => {
+  signal?.throwIfAborted();
   const token = await deps.getAccessToken();
+  signal?.throwIfAborted();
   if (token === null) {
     throw new BacklogError('unauthorized', 'Нет сессии');
   }
@@ -51,6 +54,7 @@ export const callFunction = async (
         'Content-Type': 'application/json',
       },
       body: '{}',
+      signal,
     });
   } catch (error) {
     // TypeError — нет сети, AbortError — наш таймаут 10 с. Для пользователя одно и то же.

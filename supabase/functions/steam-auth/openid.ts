@@ -201,10 +201,11 @@ export const verifySteamAssertion = async (
 };
 
 // ---------------------------------------------------------------------------
-// Одноразовый код (stateless): base64url(payload).hmac
+// Подписанный код: base64url(payload).hmac. Одноразовость обеспечивает база.
 // ---------------------------------------------------------------------------
 
 interface CodePayload {
+  jti: string;
   /** SteamID64, подтверждённый Steam. */
   sid: string;
   /** PKCE challenge, присланный приложением при старте. */
@@ -219,7 +220,12 @@ export const signCode = async (
   key: string,
   nowSeconds: number,
 ): Promise<string> => {
-  const payload: CodePayload = { sid: steamId, ch: challenge, exp: nowSeconds + CODE_TTL_SECONDS };
+  const payload: CodePayload = {
+    jti: crypto.randomUUID(),
+    sid: steamId,
+    ch: challenge,
+    exp: nowSeconds + CODE_TTL_SECONDS,
+  };
   const encoded = toBase64Url(encoder.encode(JSON.stringify(payload)));
   return `${encoded}.${await hmac(key, encoded)}`;
 };
@@ -263,11 +269,29 @@ export const redeemCode = async (
     throw new SteamAuthError('invalid_request', 'Повреждённый код');
   }
   const { sid, ch, exp } = payload as CodePayload;
-  if (exp < nowSeconds) {
+  if (exp <= nowSeconds) {
     throw new SteamAuthError('invalid_request', 'Код истёк');
   }
   if (!timingSafeEqual(await sha256Base64Url(verifier), ch)) {
     throw new SteamAuthError('invalid_request', 'verifier не подходит к коду');
   }
   return sid;
+};
+
+/** Claim must insert atomically in shared storage; never use an in-memory Set. */
+export const redeemCodeOnce = async (
+  code: unknown,
+  verifier: unknown,
+  key: string,
+  nowSeconds: number,
+  claim: (digest: string, expiresAt: string) => Promise<boolean>,
+): Promise<string> => {
+  const steamId = await redeemCode(code, verifier, key, nowSeconds);
+  const encoded = (code as string).split('.')[0];
+  const payload = JSON.parse(new TextDecoder().decode(fromBase64Url(encoded))) as CodePayload;
+  // Hash the signed payload, never store the code, verifier or Steam identity.
+  if (!(await claim(await sha256Base64Url(encoded), new Date(payload.exp * 1000).toISOString()))) {
+    throw new SteamAuthError('invalid_request', 'Код уже использован');
+  }
+  return steamId;
 };

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useBacklog } from '@/features/backlog/hooks/useBacklog';
+import { BacklogStatusNotice } from '@/features/backlog/components/BacklogStatusNotice';
 import type { RootStackScreenProps } from '@/navigation/types';
 import { Button } from '@/shared/components/Button';
 import { Screen } from '@/shared/components/Screen';
@@ -18,7 +19,8 @@ import { matchesContext } from '../utils/pickGame';
 export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
   const styles = useThemedStyles(createStyles);
 
-  const { games, genresStatus, status, errorMessage, refresh, isRefreshing } = useBacklog();
+  const backlog = useBacklog();
+  const { games, genresStatus, status } = backlog;
   const { postponed, isLoading: isBlacklistLoading } = useBlacklist();
   const [selection, setSelection] = useState<ContextId | null>(null);
   const counts = useMemo(
@@ -58,7 +60,7 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
                   ? 'Не попадём в настроение? Можно выбрать другой вариант.'
                   : genresStatus === 'loading'
                     ? 'Определяем жанры. Подходящие игры скоро появятся.'
-                    : 'Пока нет подходящих игр. Попробуй другое настроение или добавь игру.'}
+                    : 'Пока нет подходящих игр. Попробуй другое настроение, верни отложенные игры или продолжи загрузку жанров.'}
           </Text>
         </View>
       }
@@ -81,19 +83,7 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
         </Text>
         <Text style={styles.statusTag}>{genresStatus === 'loading' ? 'Жанры…' : 'STEAM'}</Text>
       </View>
-      {status === 'error' && (
-        <View style={styles.notice}>
-          <Text accessibilityRole="alert" style={styles.noticeText}>
-            {errorMessage ?? 'Не удалось загрузить игры'}
-          </Text>
-          <Button
-            label={isRefreshing ? 'Загружаем…' : 'Повторить загрузку'}
-            variant="secondary"
-            disabled={isRefreshing}
-            onPress={() => void refresh()}
-          />
-        </View>
-      )}
+      <BacklogStatusNotice backlog={backlog} />
       <Text style={styles.section}>Какой у тебя настрой?</Text>
       <View
         style={styles.grid}

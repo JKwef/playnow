@@ -18,7 +18,7 @@ import {
   buildSteamLoginUrl,
   isAllowedRedirect,
   isValidChallenge,
-  redeemCode,
+  redeemCodeOnce,
   signCode,
   SteamAuthError,
   verifySteamAssertion,
@@ -149,10 +149,24 @@ const handleExchange = async (req: Request): Promise<Response> => {
 
   let steamId: string;
   try {
-    steamId = await redeemCode(code, verifier, CODE_SIGNING_KEY, nowSeconds());
+    steamId = await redeemCodeOnce(
+      code,
+      verifier,
+      CODE_SIGNING_KEY,
+      nowSeconds(),
+      async (digest, expiresAt) => {
+        const { data, error } = await admin.rpc('claim_steam_auth_code', {
+          digest,
+          expiry: expiresAt,
+        });
+        if (error) throw error;
+        return data === true;
+      },
+    );
   } catch (error) {
-    console.warn('steam-auth exchange rejected', String(error));
-    return json(400, { error: 'invalid_request' });
+    if (error instanceof SteamAuthError) return json(400, { error: 'invalid_request' });
+    console.error('steam-auth redemption storage unavailable');
+    return json(500, { error: 'server_error' });
   }
 
   try {

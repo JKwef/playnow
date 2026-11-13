@@ -16,6 +16,7 @@ import { readApiKey, requireEnv } from '../_shared/apiKeys.ts';
 import { getRequestUser } from '../_shared/auth.ts';
 import { json, preflight, UPSTREAM_TIMEOUT_MS } from '../_shared/http.ts';
 import { buildOwnedGamesUrl, parseOwnedGames } from './steam.ts';
+import { readLibrary } from './library.ts';
 
 const SUPABASE_URL = requireEnv('SUPABASE_URL');
 const SERVICE_ROLE_KEY = readApiKey('SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SECRET_KEYS');
@@ -81,14 +82,25 @@ Deno.serve(async (req) => {
 
   // Возвращаем всё из таблицы: так клиент получает и жанры, сохранённые раньше,
   // и игры, добавленные вручную (FR2.6).
-  const { data, error } = await admin
-    .from('games')
-    .select('appid, name, cover_url, genres, playtime, created_at, last_played_at')
-    .eq('user_id', user.id)
-    .order('name');
-  if (error) {
-    console.error('games select failed', error);
+  try {
+    const data = await readLibrary(
+      async (afterAppid, limit) =>
+        await admin
+          .from('games')
+          .select(
+            'appid, name, cover_url, genres, genres_override, playtime, created_at, last_played_at, rawg_checked_at',
+          )
+          .eq('user_id', user.id)
+          .gt('appid', afterAppid)
+          .order('appid', { ascending: true })
+          .limit(limit),
+    );
+    return json(200, {
+      games: data,
+      remaining: data.filter((game) => game.rawg_checked_at === null).length,
+    });
+  } catch {
+    console.error('games paginated select failed');
     return json(500, { error: 'server_error' });
   }
-  return json(200, { games: data ?? [] });
 });

@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { accountRevision } from '@/shared/services/accountScope';
 
 import {
   createBlacklistService,
@@ -38,7 +39,10 @@ export const useBlacklist = (service: BlacklistService = defaultService): UseBla
   const postpone = useCallback(
     async (appid: number) => {
       if (steamId === null) return;
-      queryClient.setQueryData(blacklistKey(steamId), await service.add(steamId, appid));
+      const revision = accountRevision(steamId);
+      const entries = await service.add(steamId, appid);
+      if (useAuth.getState().user?.steamId === steamId && accountRevision(steamId) === revision)
+        queryClient.setQueryData(blacklistKey(steamId), entries);
     },
     [steamId, service, queryClient],
   );
@@ -46,7 +50,10 @@ export const useBlacklist = (service: BlacklistService = defaultService): UseBla
   const restore = useCallback(
     async (appid: number) => {
       if (steamId === null) return;
-      queryClient.setQueryData(blacklistKey(steamId), await service.remove(steamId, appid));
+      const revision = accountRevision(steamId);
+      const entries = await service.remove(steamId, appid);
+      if (useAuth.getState().user?.steamId === steamId && accountRevision(steamId) === revision)
+        queryClient.setQueryData(blacklistKey(steamId), entries);
     },
     [steamId, service, queryClient],
   );

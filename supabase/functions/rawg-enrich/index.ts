@@ -35,7 +35,8 @@ const CONCURRENCY = 5;
 /** Новые запросы не начинаем позже этого срока (лимит функции намного больше). */
 const TIME_BUDGET_MS = 25_000;
 
-const GAME_COLUMNS = 'appid, name, cover_url, genres, playtime, created_at, last_played_at';
+const GAME_COLUMNS =
+  'appid, name, cover_url, genres, genres_override, playtime, created_at, last_played_at, rawg_checked_at';
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -72,6 +73,7 @@ Deno.serve(async (req) => {
     .is('rawg_checked_at', null)
     .order('playtime', { ascending: true })
     .order('name', { ascending: true })
+    .order('appid', { ascending: true })
     .limit(BATCH_SIZE);
   if (pending.error) {
     console.error('pending games select failed', pending.error);
@@ -136,5 +138,6 @@ Deno.serve(async (req) => {
     games: updated.data ?? [],
     remaining: remaining.count ?? 0,
     failed: result.failed,
+    interrupted: result.fatal !== null,
   });
 });

@@ -6,6 +6,10 @@ export interface Game {
   coverUrl: string | null;
   /** Жанры в нижнем регистре (rpg, puzzle...). Заполняются из RAWG на этапе 6. */
   genres: string[];
+  /** Present in the stage 2 protocol; absent in old device caches. */
+  importedGenres?: string[];
+  genresOverride?: string[] | null;
+  rawgCheckedAt?: string | null;
   /** Время в игре в минутах (playtime_forever). */
   playtimeMinutes: number;
   /** Когда игра появилась в бэклоге (ISO). Нужна для сортировки «по дате добавления». */
@@ -32,4 +36,6 @@ export interface BacklogSnapshot {
   games: Game[];
   /** Когда список получен из Steam (ISO). */
   updatedAt: string;
+  /** Last server-confirmed unfinished metadata count; absent in old caches. */
+  metadataRemaining?: number;
 }

@@ -6,10 +6,17 @@ import type { FunctionsClientDeps } from './functionsClient';
 import { createManualGameService, type ManualGameService } from './manualGames';
 import { createRawgEnrichmentService, type RawgEnrichmentService } from './rawgApi';
 import { createSteamLibraryService, type SteamLibraryService } from './steamApi';
+import { createGenreOverridesService, type GenreOverridesService } from './genreOverrides';
 
 let functionsDeps: FunctionsClientDeps | null = null;
 let library: SteamLibraryService | null = null;
 let enrichment: RawgEnrichmentService | null = null;
+let genreOverrides: GenreOverridesService | null = null;
+
+export const getGenreOverrides = (): GenreOverridesService => {
+  genreOverrides ??= createGenreOverridesService(getSupabase);
+  return genreOverrides;
+};
 
 // Сервер начинает игры в течение 25 с; последняя может ждать RAWG и два запроса
 // обложки ещё до 30 с. Оставляем запас на Auth, БД и передачу ответа.

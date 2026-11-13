@@ -17,6 +17,7 @@ import { formatDateTime, formatPlaytime } from '@/shared/utils/format';
 import { BacklogErrorView } from '../components/BacklogErrorView';
 import { GameCover } from '../components/GameCover';
 import { GenreChips } from '../components/GenreChips';
+import { GenreEditor } from '../components/GenreEditor';
 import { useBacklog } from '../hooks/useBacklog';
 import { isManualAppId } from '../utils/manualGame';
 
@@ -83,6 +84,7 @@ export function GameDetailsScreen({ route, navigation }: RootStackScreenProps<'G
         <Text style={styles.secondary}>Последний запуск: {formatDateTime(game.lastPlayedAt)}</Text>
       )}
       <GenreChips genres={game.genres} />
+      <GenreEditor key={game.appid} game={game} />
       <Button
         label={isLaunching ? 'Открываем Steam…' : 'Открыть в Steam'}
         accessibilityHint="Откроет Steam с этой игрой"

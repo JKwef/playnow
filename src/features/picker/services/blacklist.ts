@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { CacheStorage } from '@/features/backlog/services/backlogCache';
 import { isRecord } from '@/shared/utils/validation';
+import { accountRevision, queueAccountWrite } from '@/shared/services/accountScope';
 
 /** На сколько дней «Отложить» убирает игру из подбора (FR4.3). */
 export const POSTPONE_DAYS = 7;
@@ -56,33 +57,43 @@ export const createBlacklistService = (
     return result;
   };
 
-  const save = async (steamId: string, entries: Map<number, number>): Promise<void> => {
-    await storage.setItem(keyFor(steamId), JSON.stringify(Object.fromEntries(entries)));
+  const save = async (
+    steamId: string,
+    entries: Map<number, number>,
+    revision: number,
+  ): Promise<void> => {
+    await queueAccountWrite(steamId, async () => {
+      if (accountRevision(steamId) !== revision) return;
+      await storage.setItem(keyFor(steamId), JSON.stringify(Object.fromEntries(entries)));
+    });
   };
 
   return {
     read: async (steamId) => {
+      const revision = accountRevision(steamId);
       const entries = await load(steamId);
       // Сразу переписываем без просроченных, чтобы файл не рос бесконечно.
-      await save(steamId, entries).catch((error: unknown) => {
+      await save(steamId, entries, revision).catch((error: unknown) => {
         console.warn('blacklist prune failed', error);
       });
       return entries;
     },
     add: async (steamId, appid) => {
+      const revision = accountRevision(steamId);
       const entries = await load(steamId);
       entries.set(appid, now() + POSTPONE_DAYS * DAY_MS);
-      await save(steamId, entries);
+      await save(steamId, entries, revision);
       return entries;
     },
     remove: async (steamId, appid) => {
+      const revision = accountRevision(steamId);
       const entries = await load(steamId);
       entries.delete(appid);
-      await save(steamId, entries);
+      await save(steamId, entries, revision);
       return entries;
     },
     clear: async (steamId) => {
-      await storage.removeItem(keyFor(steamId));
+      await queueAccountWrite(steamId, () => storage.removeItem(keyFor(steamId)));
     },
   };
 };

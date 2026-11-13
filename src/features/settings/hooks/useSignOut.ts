@@ -41,6 +41,7 @@ export const useSignOut = (deps: SignOutDeps = defaultDeps): UseSignOutResult =>
     if (!confirmed) return;
 
     setIsSigningOut(true);
+    await queryClient.cancelQueries();
     // Сначала выходим: навигатор сразу убирает экраны с данными и они не перезапросят бэклог.
     await signOut();
     queryClient.clear();

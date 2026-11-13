@@ -8,6 +8,7 @@ import { Appearance, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { linking } from '@/navigation/linking';
+import { bindAccountQueries } from '@/features/auth/services/accountQueries';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { createNavigationTheme } from '@/navigation/theme';
 import { LoadingIndicator } from '@/shared/components/LoadingIndicator';
@@ -34,6 +35,8 @@ export default function App() {
         },
       }),
   );
+
+  useEffect(() => bindAccountQueries(queryClient), [queryClient]);
 
   return (
     <SafeAreaProvider>

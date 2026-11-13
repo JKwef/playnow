@@ -35,7 +35,7 @@ export function BacklogLoadingScreen({ navigation }: RootStackScreenProps<'Backl
     }
   }, [hasGames, navigation]);
 
-  if (status === 'error') {
+  if (status === 'error' || (errorCode !== null && !hasGames)) {
     return (
       <Screen withTopInset centered>
         <BacklogErrorView
@@ -58,10 +58,9 @@ export function BacklogLoadingScreen({ navigation }: RootStackScreenProps<'Backl
     return (
       <Screen withTopInset centered>
         <Text accessibilityRole="header" style={styles.title}>
-          У вас нет игр в Steam
+          В библиотеке пока нет игр
         </Text>
-        <Text style={styles.subtitle}>Добавьте игры вручную или обновите список позже</Text>
-        <Button label="Добавить игру вручную" onPress={() => navigation.navigate('AddGame')} />
+        <Text style={styles.subtitle}>Повторите импорт, если вы недавно добавили игры в Steam</Text>
         <Button
           label="Продолжить"
           variant="secondary"
@@ -72,6 +71,11 @@ export function BacklogLoadingScreen({ navigation }: RootStackScreenProps<'Backl
           variant="tertiary"
           disabled={isRefreshing}
           onPress={() => void refresh()}
+        />
+        <Button
+          label="Добавить игру вручную"
+          variant="tertiary"
+          onPress={() => navigation.navigate('AddGame')}
         />
       </Screen>
     );

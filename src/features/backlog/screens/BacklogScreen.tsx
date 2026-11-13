@@ -14,6 +14,7 @@ import { formatDateTime } from '@/shared/utils/format';
 
 import { BacklogErrorView } from '../components/BacklogErrorView';
 import { BacklogToolbar } from '../components/BacklogToolbar';
+import { BacklogStatusNotice } from '../components/BacklogStatusNotice';
 import { GameList } from '../components/GameList';
 import { useBacklog } from '../hooks/useBacklog';
 import { useGameFilters } from '../hooks/useGameFilters';
@@ -84,31 +85,20 @@ export function BacklogScreen({ navigation }: RootStackScreenProps<'Backlog'>) {
         sort={filters.sort}
         onChangeSort={filters.setSort}
       />
-      <View style={styles.status}>
-        <Text style={styles.meta} accessibilityLiveRegion="polite">
-          {filters.hasActiveFilters ? `Найдено ${shown} из ${total}` : `Всего игр: ${total}`}
-          {backlog.updatedAt ? ` · обновлено ${formatDateTime(backlog.updatedAt)}` : ''}
-        </Text>
-        {backlog.genresStatus === 'loading' && (
-          <Text style={styles.meta}>
-            Определяем жанры
-            {backlog.genresRemaining !== null && backlog.genresRemaining > 0
-              ? `: осталось ${backlog.genresRemaining}`
-              : '…'}
-          </Text>
-        )}
-        {backlog.errorMessage !== null && (
-          <Text accessibilityRole="alert" style={styles.error}>
-            {backlog.errorMessage}
-            {backlog.isFromCache ? '. Показан сохранённый список' : ''}
-          </Text>
-        )}
-      </View>
       <GameList
         games={filters.visibleGames}
         onPressGame={openGame}
         refreshing={backlog.isRefreshing}
         onRefresh={() => void backlog.refresh()}
+        ListHeaderComponent={
+          <View style={styles.status}>
+            <Text style={styles.meta} accessibilityLiveRegion="polite">
+              {filters.hasActiveFilters ? `Найдено ${shown} из ${total}` : `Всего игр: ${total}`}
+              {backlog.updatedAt ? ` · обновлено ${formatDateTime(backlog.updatedAt)}` : ''}
+            </Text>
+            <BacklogStatusNotice backlog={backlog} />
+          </View>
+        }
         ListEmptyComponent={
           filters.hasActiveFilters ? (
             <View style={styles.empty}>
@@ -118,9 +108,20 @@ export function BacklogScreen({ navigation }: RootStackScreenProps<'Backlog'>) {
             </View>
           ) : (
             <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>Список пуст</Text>
-              <Text style={styles.meta}>Добавьте игру вручную или обновите список из Steam</Text>
-              <Button label="Добавить игру" onPress={() => navigation.navigate('AddGame')} />
+              <Text style={styles.emptyTitle}>В библиотеке пока нет игр</Text>
+              <Text style={styles.meta}>
+                Если вы недавно купили игру, повторите импорт из Steam
+              </Text>
+              <Button
+                label={backlog.isRefreshing ? 'Загружаем…' : 'Повторить импорт'}
+                disabled={backlog.isRefreshing}
+                onPress={() => void backlog.refresh()}
+              />
+              <Button
+                label="Добавить игру вручную"
+                variant="tertiary"
+                onPress={() => navigation.navigate('AddGame')}
+              />
             </View>
           )
         }

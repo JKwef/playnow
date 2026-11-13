@@ -29,6 +29,7 @@ export interface Database {
           name: string;
           cover_url: string | null;
           genres: string[];
+          genres_override: string[] | null;
           playtime: number;
           created_at: string;
           updated_at: string;
@@ -49,6 +50,7 @@ export interface Database {
           name?: string;
           cover_url?: string | null;
           genres?: string[];
+          genres_override?: string[] | null;
           playtime?: number;
         };
         Relationships: [

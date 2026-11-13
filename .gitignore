@@ -6,6 +6,7 @@ node_modules/
 # local tooling (git/deno/npm caches live inside the workspace on this machine)
 .npm-cache/
 .tools/
+supabase/.temp/
 
 # Expo
 .expo/
