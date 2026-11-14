@@ -1,8 +1,17 @@
 import { createContext, useContext, useMemo } from 'react';
 
-import { darkColors, type ThemeColors } from '@/shared/constants/colors';
+import { darkColors, themePalettes, type ThemeColors } from '@/shared/constants/colors';
 
-export type ThemeMode = 'dark' | 'light';
+export type ThemeMode = keyof typeof themePalettes;
+
+export const isThemeMode = (value: string | null): value is ThemeMode =>
+  value !== null && Object.hasOwn(themePalettes, value);
+
+export const isSpectrumMode = (mode: ThemeMode): mode is 'spectrum' | 'spectrumLight' =>
+  mode === 'spectrum' || mode === 'spectrumLight';
+
+export const themeColorScheme = (mode: ThemeMode): 'dark' | 'light' =>
+  mode === 'light' || mode === 'glass' || mode === 'spectrumLight' ? 'light' : 'dark';
 
 export interface AppTheme {
   mode: ThemeMode;

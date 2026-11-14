@@ -1,3 +1,4 @@
+import { BrandBar } from './BrandBar';
 import type { ThemeColors } from '@/shared/constants/colors';
 import { useThemedStyles } from '@/shared/theme/useTheme';
 import type { ReactNode } from 'react';
@@ -12,6 +13,7 @@ export interface ScreenProps {
   withTopInset?: boolean;
   /** Центрировать содержимое по вертикали (экраны входа, загрузки, пустые состояния). */
   centered?: boolean;
+  showBrandBar?: boolean;
   /** Закреплённое действие; в низком окне или при крупном шрифте прокручивается. */
   footer?: ReactNode;
 }
@@ -20,28 +22,40 @@ export interface ScreenProps {
  * Обёртка экрана: фон, безопасные зоны, скролл.
  * Скролл нужен, чтобы контент не обрезался в ландшафте и на iPhone SE (NFR3.3).
  */
-export function Screen({ children, withTopInset = false, centered = false, footer }: ScreenProps) {
+export function Screen({
+  children,
+  withTopInset = false,
+  centered = false,
+  showBrandBar = true,
+  footer,
+}: ScreenProps) {
   const styles = useThemedStyles(createStyles);
   const { height, fontScale } = useWindowDimensions();
   const inlineFooter = height < 600 || fontScale > 1.3;
 
-  const edges: Edge[] = withTopInset
-    ? ['top', 'bottom', 'left', 'right']
-    : ['bottom', 'left', 'right'];
+  const edges: Edge[] =
+    withTopInset && !showBrandBar
+      ? ['top', 'bottom', 'left', 'right']
+      : ['bottom', 'left', 'right'];
   return (
-    <SafeAreaView style={styles.safeArea} edges={edges}>
-      <ScrollView
-        testID="screen-content-scroll"
-        contentContainerStyle={[styles.content, centered && styles.centered]}
-        keyboardShouldPersistTaps="handled"
-        automaticallyAdjustKeyboardInsets
-        keyboardDismissMode="on-drag"
-      >
-        {children}
-        {inlineFooter && footer !== undefined && <View style={styles.inlineFooter}>{footer}</View>}
-      </ScrollView>
-      {!inlineFooter && footer !== undefined && <View style={styles.footer}>{footer}</View>}
-    </SafeAreaView>
+    <View style={styles.safeArea}>
+      {withTopInset && showBrandBar && <BrandBar />}
+      <SafeAreaView style={styles.safeArea} edges={edges}>
+        <ScrollView
+          testID="screen-content-scroll"
+          contentContainerStyle={[styles.content, centered && styles.centered]}
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets
+          keyboardDismissMode="on-drag"
+        >
+          {children}
+          {inlineFooter && footer !== undefined && (
+            <View style={styles.inlineFooter}>{footer}</View>
+          )}
+        </ScrollView>
+        {!inlineFooter && footer !== undefined && <View style={styles.footer}>{footer}</View>}
+      </SafeAreaView>
+    </View>
   );
 }
 

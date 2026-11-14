@@ -41,8 +41,29 @@
 
 ## Быстрый старт
 
+Требуется Node.js 24 и npm. В Windows-среде Codex, где Node уже доступен,
+а npm отсутствует в PATH, выполните в корне проекта:
+
+```powershell
+. ./scripts/dev-env.ps1
+npm.cmd ci
+npm.cmd run validate
+```
+
+Скрипт настраивает только текущий PowerShell и при необходимости загружает
+npm 11.6.2 в игнорируемую `.tools/` с проверкой SHA-256. Для первого запуска
+нужен доступ к registry.npmjs.org. В новой консоли повторите dot-source.
+
+Если `node --version` работает, но сетевые команды в Codex получают `EACCES`,
+проверьте разрешения сети sandbox. В проверенной среде localhost работал,
+а HTTPS к npm registry возвращал `EACCES` внутри sandbox и `200` с одобренным
+сетевым доступом. Это не блокировка запуска Node.js. Для разовых загрузок
+достаточно одобрения конкретной команды; постоянные сетевые разрешения задаются
+в конфигурации Codex с учётом управляемых политик.
+См. [официальную документацию о сетевых разрешениях](https://learn.chatgpt.com/docs/agent-approvals-security#network-access).
+
 ```bash
-npm install
+npm ci
 npx expo start
 ```
 
@@ -70,7 +91,7 @@ cp .env.example .env   # и заполните значения
 ## Проверки
 
 ```bash
-npm run validate    # typecheck + eslint + prettier --check
+npm run validate    # typecheck + eslint + prettier --check + Jest
 ```
 
 - `npx expo config --type public` печатает итоговый конфиг. В `extra` должны быть только `supabaseUrl`, `supabaseAnonKey` и `privacyPolicyUrl`; ключей `STEAM_API_KEY`/`RAWG_API_KEY` там быть не должно.
@@ -80,13 +101,13 @@ npm run validate    # typecheck + eslint + prettier --check
 
 ## Скрипты
 
-| Команда                           | Что делает                         |
-| --------------------------------- | ---------------------------------- |
-| `npm start`                       | dev-сервер Expo                    |
-| `npm run typecheck`               | проверка типов (TypeScript strict) |
-| `npm run lint` / `lint:fix`       | ESLint (+ Prettier как правило)    |
-| `npm run format` / `format:check` | Prettier                           |
-| `npm run validate`                | typecheck + lint + format:check    |
+| Команда                           | Что делает                             |
+| --------------------------------- | -------------------------------------- |
+| `npm start`                       | dev-сервер Expo                        |
+| `npm run typecheck`               | проверка типов (TypeScript strict)     |
+| `npm run lint` / `lint:fix`       | ESLint (+ Prettier как правило)        |
+| `npm run format` / `format:check` | Prettier                               |
+| `npm run validate`                | typecheck + lint + format:check + Jest |
 
 ## Структура
 
@@ -96,7 +117,7 @@ src/
   shared/        components, hooks, services, utils, types, constants, config
   navigation/    навигаторы React Navigation
 supabase/        миграции и Edge Functions (прокси к Steam/RAWG)
-tests/           unit (Jest) и e2e (Detox)
+tests/           unit (Jest); e2e пока содержит только .gitkeep
 ```
 
 Импорты из `src` пишутся через алиас `@/`, например `import { colors } from '@/shared/constants'`.

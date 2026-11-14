@@ -1,11 +1,14 @@
+import { AppText as Text } from '@/shared/components/AppText';
+import { PixelCheck } from '@/shared/components/PixelCheck';
 import type { ThemeColors } from '@/shared/constants/colors';
-import { useThemedStyles } from '@/shared/theme/useTheme';
-import { memo } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useThemeColors, useThemedStyles } from '@/shared/theme/useTheme';
+import { memo, useState } from 'react';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { fontSize, radius, spacing } from '@/shared/constants';
 
 import type { ContextId, PickerContext } from '../types';
+import { ContextHero } from './ContextHero';
 
 export interface ContextCardProps {
   context: PickerContext;
@@ -13,6 +16,7 @@ export interface ContextCardProps {
   selected: boolean;
   onPress: (id: ContextId) => void;
   disabled?: boolean;
+  showHero?: boolean;
 }
 
 export const ContextCard = memo(function ContextCard({
@@ -21,14 +25,20 @@ export const ContextCard = memo(function ContextCard({
   selected,
   onPress,
   disabled = false,
+  showHero = false,
 }: ContextCardProps) {
+  const colors = useThemeColors();
   const styles = useThemedStyles(createStyles);
+  const [heroRun, setHeroRun] = useState(0);
   const { width, fontScale } = useWindowDimensions();
   const singleColumn = width < 360 || fontScale > 1.3;
 
   return (
     <Pressable
-      onPress={() => onPress(context.id)}
+      onPress={() => {
+        onPress(context.id);
+        if (showHero) setHeroRun((run) => run + 1);
+      }}
       disabled={disabled}
       style={({ pressed }) => [
         styles.card,
@@ -43,17 +53,18 @@ export const ContextCard = memo(function ContextCard({
       accessibilityHint="Выберет настроение для подбора"
     >
       <View style={styles.top}>
-        <Text style={styles.icon} accessible={false}>
-          {context.icon}
-        </Text>
+        {showHero ? (
+          <ContextHero context={context.id} run={heroRun} />
+        ) : (
+          <Text style={styles.icon} accessible={false}>
+            {context.icon}
+          </Text>
+        )}
         <View style={[styles.radio, selected && styles.radioSelected]}>
-          {selected && <View style={styles.radioDot} />}
+          {selected && <PixelCheck color={colors.onPrimary} />}
         </View>
       </View>
-      <Text style={styles.title}>
-        {selected ? '✓ ' : ''}
-        {context.title}
-      </Text>
+      <Text style={styles.title}>{context.title}</Text>
       <Text style={styles.description}>{context.description}</Text>
       <Text style={[styles.count, selected && styles.countSelected]}>
         {matchingCount > 0 ? `${matchingCount} в подборе` : 'Пока нет игр'}
@@ -87,16 +98,15 @@ const createStyles = (colors: ThemeColors) =>
     },
     icon: { fontSize: 26 },
     radio: {
-      width: 19,
-      height: 19,
-      borderRadius: 10,
+      width: 24,
+      height: 24,
+      borderRadius: 6,
       borderWidth: 1,
       borderColor: colors.textSecondary,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    radioSelected: { borderColor: colors.secondary },
-    radioDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.secondary },
+    radioSelected: { borderColor: colors.secondary, backgroundColor: colors.secondary },
     title: { color: colors.textPrimary, fontSize: fontSize.body, fontWeight: '700' },
     description: { color: colors.textSecondary, fontSize: 13, lineHeight: 19, flexGrow: 1 },
     count: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },

@@ -1,11 +1,7 @@
-/**
- * Имена шрифтов Inter. Сами .ttf будут подключены через expo-font
- * на этапе полировки UI; до этого используется системный шрифт.
- */
 export const fontFamily = {
   regular: 'Inter-Regular',
-  medium: 'Inter-Medium',
   bold: 'Inter-Bold',
+  display: 'RussoOne-Regular',
 } as const;
 
 export const fontSize = {

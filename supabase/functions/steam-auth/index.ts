@@ -114,7 +114,31 @@ const issueSession = async (steamId: string) => {
 
   const link = await admin.auth.admin.generateLink({ type: 'magiclink', email });
   if (link.error) throw link.error;
+  if (link.data.user.app_metadata.steam_id !== steamId) {
+    throw new Error('Steam identity does not match the existing account');
+  }
   const userId = link.data.user.id;
+
+  const steamApiKey = Deno.env.get('STEAM_API_KEY');
+  if (steamApiKey) {
+    try {
+      const url = new URL('https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/');
+      url.search = new URLSearchParams({ key: steamApiKey, steamids: steamId }).toString();
+      const response = await fetch(url, { signal: AbortSignal.timeout(2500) });
+      if (response.ok) {
+        const body = await response.json();
+        const player = body?.response?.players?.[0];
+        const nickname = player?.personaname;
+        if (player?.steamid === steamId && typeof nickname === 'string' && nickname.trim()) {
+          await admin.auth.admin.updateUserById(userId, {
+            app_metadata: { steam_nickname: nickname.trim().slice(0, 128) },
+          });
+        }
+      }
+    } catch {
+      console.warn('Steam nickname lookup failed');
+    }
+  }
 
   const profile = await admin
     .from('users')

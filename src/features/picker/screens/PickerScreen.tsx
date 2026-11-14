@@ -1,3 +1,5 @@
+import { useDesktopHeader } from '@/shared/hooks/useDesktopHeader';
+import { DemoMenu } from '@/features/demo/screens/DemoMenu';
 import type { ThemeColors } from '@/shared/constants/colors';
 import { useThemedStyles } from '@/shared/theme/useTheme';
 import { useMemo } from 'react';
@@ -21,6 +23,7 @@ import { filterCandidates } from '../utils/pickGame';
 import { useInstalledGames } from '@/features/backlog/hooks/useInstalledGames';
 
 export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
+  const desktopHeader = useDesktopHeader();
   const styles = useThemedStyles(createStyles);
 
   const backlog = useBacklog();
@@ -95,6 +98,13 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
       }
     >
       <View style={styles.intro}>
+        {!desktopHeader && (
+          <DemoMenu
+            onSettings={() => navigation.navigate('AccountSettings')}
+            onFavorites={() => navigation.navigate('Demo', { favorites: true })}
+            onAcceptInvitation={(sessionId) => navigation.navigate('Demo', { sessionId })}
+          />
+        )}
         <Text accessibilityRole="header" style={styles.title}>
           Во что играем?
         </Text>

@@ -18,9 +18,7 @@ export interface SecureStoreDriver {
 }
 
 /**
- * Размер одного куска. SecureStore исторически предупреждает о значениях > 2048 байт
- * (на части Android-устройств запись больших значений падает), а сессия Supabase
- * с JWT и refresh token обычно 2–4 КБ. Берём с запасом под многобайтовые символы.
+ * Лимит в байтах: некоторые версии iOS отклоняли значения больше 2048 байт.
  */
 export const SECURE_STORE_CHUNK_SIZE = 1800;
 
@@ -28,62 +26,137 @@ export const SECURE_STORE_CHUNK_SIZE = 1800;
 const toSafeKey = (key: string): string => key.replace(/[^A-Za-z0-9._-]/g, '_');
 const countKey = (key: string): string => `${toSafeKey(key)}.count`;
 const chunkKey = (key: string, index: number): string => `${toSafeKey(key)}.${index}`;
+const queues = new WeakMap<SecureStoreDriver, Map<string, Promise<unknown>>>();
+type Manifest = { slot: 'a' | 'b'; count: number };
 
 /**
  * Хранилище сессии поверх SecureStore (FR1.2): Keychain на iOS, Keystore на Android.
- * Длинные значения режутся на куски `<key>.0..N`, количество кусков лежит в `<key>.count`.
+ * Новый слот записывается целиком до переключения manifest. Старый числовой
+ * счётчик поддерживается до первой успешной записи в новом формате.
  */
 export const createChunkedSecureStorage = (
   driver: SecureStoreDriver = SecureStore,
   chunkSize: number = SECURE_STORE_CHUNK_SIZE,
 ): KeyValueStorage => {
-  const readCount = async (key: string): Promise<number> => {
-    const raw = await driver.getItemAsync(countKey(key));
-    const count = raw === null ? 0 : Number.parseInt(raw, 10);
-    return Number.isSafeInteger(count) && count > 0 ? count : 0;
+  if (!Number.isSafeInteger(chunkSize) || chunkSize < 4)
+    throw new Error('SecureStore chunk size must be at least 4 bytes');
+  const pending = queues.get(driver) ?? new Map<string, Promise<unknown>>();
+  queues.set(driver, pending);
+  const serial = <T>(key: string, operation: () => Promise<T>): Promise<T> => {
+    const safe = toSafeKey(key);
+    const next = (pending.get(safe) ?? Promise.resolve()).catch(() => undefined).then(operation);
+    pending.set(safe, next);
+    void next
+      .finally(() => {
+        if (pending.get(safe) === next) pending.delete(safe);
+      })
+      .catch(() => undefined);
+    return next;
   };
-
-  const removeItem = async (key: string): Promise<void> => {
-    const count = await readCount(key);
-    // Сначала счётчик: если удаление кусков прервётся, getItem уже вернёт null, а не обрывок.
-    await driver.deleteItemAsync(countKey(key));
+  const readManifest = async (key: string): Promise<Manifest | number> => {
+    const raw = await driver.getItemAsync(countKey(key));
+    if (raw === null) return 0;
+    try {
+      const value: unknown = JSON.parse(raw);
+      if (typeof value === 'number') return Number.isSafeInteger(value) && value > 0 ? value : 0;
+      if (
+        typeof value === 'object' &&
+        value !== null &&
+        'slot' in value &&
+        'count' in value &&
+        (value.slot === 'a' || value.slot === 'b') &&
+        typeof value.count === 'number' &&
+        Number.isSafeInteger(value.count) &&
+        value.count > 0
+      )
+        return { slot: value.slot, count: value.count };
+    } catch {
+      return 0;
+    }
+    return 0;
+  };
+  const clearChunks = async (key: string, manifest: Manifest | number) => {
+    const count = typeof manifest === 'number' ? manifest : manifest.count;
+    const base = typeof manifest === 'number' ? key : `${key}.${manifest.slot}`;
     await Promise.all(
-      Array.from({ length: count }, (_, index) => driver.deleteItemAsync(chunkKey(key, index))),
+      Array.from({ length: count }, (_, index) => driver.deleteItemAsync(chunkKey(base, index))),
     );
+    if (typeof manifest !== 'number') await driver.deleteItemAsync(countKey(base));
+  };
+  const clearSlot = async (key: string, slot: 'a' | 'b') => {
+    const raw = await driver.getItemAsync(countKey(`${key}.${slot}`));
+    const count = Number(raw);
+    if (Number.isSafeInteger(count) && count > 0) await clearChunks(key, { slot, count });
+  };
+  const removeItem = async (key: string) => {
+    const manifest = await readManifest(key);
+    await driver.deleteItemAsync(countKey(key));
+    await clearChunks(key, manifest);
+    await clearSlot(key, 'a');
+    await clearSlot(key, 'b');
   };
 
   return {
-    getItem: async (key) => {
-      const count = await readCount(key);
-      if (count === 0) {
-        return null;
-      }
-      const chunks = await Promise.all(
-        Array.from({ length: count }, (_, index) => driver.getItemAsync(chunkKey(key, index))),
-      );
-      // Если хоть одного куска нет, значение повреждено: лучше «нет сессии», чем битый JSON.
-      if (chunks.some((chunk) => chunk === null)) {
-        await removeItem(key);
-        return null;
-      }
-      return chunks.join('');
-    },
+    getItem: (key) =>
+      serial(key, async () => {
+        const manifest = await readManifest(key);
+        const count = typeof manifest === 'number' ? manifest : manifest.count;
+        if (count === 0) {
+          return null;
+        }
+        const chunks = await Promise.all(
+          Array.from({ length: count }, (_, index) =>
+            driver.getItemAsync(
+              chunkKey(typeof manifest === 'number' ? key : `${key}.${manifest.slot}`, index),
+            ),
+          ),
+        );
+        // Если хоть одного куска нет, значение повреждено: лучше «нет сессии», чем битый JSON.
+        if (chunks.some((chunk) => chunk === null)) {
+          await removeItem(key);
+          return null;
+        }
+        return chunks.join('');
+      }),
 
-    setItem: async (key, value) => {
-      // Стираем старое значение: новое может состоять из меньшего числа кусков.
-      await removeItem(key);
-      const chunks: string[] = [];
-      for (let offset = 0; offset < value.length; offset += chunkSize) {
-        chunks.push(value.slice(offset, offset + chunkSize));
-      }
-      await Promise.all(
-        chunks.map((chunk, index) => driver.setItemAsync(chunkKey(key, index), chunk)),
-      );
-      // Счётчик пишем последним: до этого момента значение считается отсутствующим.
-      await driver.setItemAsync(countKey(key), String(chunks.length));
-    },
+    setItem: (key, value) =>
+      serial(key, async () => {
+        const previous = await readManifest(key);
+        const slot = typeof previous === 'number' || previous.slot === 'b' ? 'a' : 'b';
+        const chunks: string[] = [];
+        let chunk = '';
+        let bytes = 0;
+        for (const character of value) {
+          const code = character.codePointAt(0)!;
+          const size = code <= 0x7f ? 1 : code <= 0x7ff ? 2 : code <= 0xffff ? 3 : 4;
+          if (bytes + size > chunkSize) {
+            chunks.push(chunk);
+            chunk = '';
+            bytes = 0;
+          }
+          chunk += character;
+          bytes += size;
+        }
+        chunks.push(chunk);
+        const manifest: Manifest = { slot, count: chunks.length };
+        await clearSlot(key, slot);
+        try {
+          await driver.setItemAsync(countKey(`${key}.${slot}`), String(chunks.length));
+          // Sequential writes ensure rollback cannot race unfinished native writes.
+          for (const [index, part] of chunks.entries())
+            await driver.setItemAsync(chunkKey(`${key}.${slot}`, index), part);
+          await driver.setItemAsync(countKey(key), JSON.stringify(manifest));
+        } catch (error) {
+          await clearChunks(key, manifest).catch(() => undefined);
+          throw error;
+        }
+        // A cleanup failure must not report a committed token update as failed.
+        await clearChunks(key, previous).catch((error: unknown) =>
+          console.warn('secure storage cleanup failed', error),
+        );
+      }),
 
-    removeItem,
+    removeItem: (key) => serial(key, () => removeItem(key)),
   };
 };
 

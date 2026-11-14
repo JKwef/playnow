@@ -1,25 +1,89 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppText as Text } from '@/shared/components/AppText';
+import { Image, Pressable, StyleSheet, View, type ImageSourcePropType } from 'react-native';
 
 import type { ThemeColors } from '@/shared/constants/colors';
-import { useTheme, useThemedStyles, type ThemeMode } from '@/shared/theme/useTheme';
+import { isSpectrumMode, useTheme, useThemedStyles, type ThemeMode } from '@/shared/theme/useTheme';
+import { supportsSpectrum } from '@/shared/theme/ThemeProvider';
 
-const OPTIONS: { mode: ThemeMode; label: string }[] = [
-  { mode: 'dark', label: '☾  Тёмная' },
-  { mode: 'light', label: '☀  Светлая' },
+const THEMES = {
+  spectrum: { label: 'Тёмная палитра · ↑ / ↓', icon: '↑↓' },
+  spectrumLight: { label: 'Светлая палитра · ↑ / ↓', icon: '↑↓' },
+  dark: { label: 'Тёмная', icon: '☾' },
+  light: { label: 'Светлая', icon: '☀' },
+  glass: { label: 'Жидкое стекло', icon: '∿' },
+  green: {
+    label: 'Зелёная',
+    icon: require('../../../assets/icons/sprout.png') as ImageSourcePropType,
+  },
+  burgundy: {
+    label: 'Бордовая',
+    icon: require('../../../assets/icons/flame.png') as ImageSourcePropType,
+  },
+} satisfies Record<ThemeMode, { label: string; icon: string | ImageSourcePropType }>;
+const OPTIONS = (Object.keys(THEMES) as ThemeMode[]).map((value) => ({
+  value,
+  ...THEMES[value],
+}));
+const THEME_ORDER: readonly ThemeMode[] = [
+  'dark',
+  'light',
+  'glass',
+  'green',
+  'burgundy',
+  'spectrum',
+  'spectrumLight',
 ];
 
-export function ThemeSelector({ compact = false }: { compact?: boolean }) {
-  const { mode, setMode, persistenceError } = useTheme();
+function ThemeIcon({
+  icon,
+  color,
+  size,
+}: {
+  icon: string | ImageSourcePropType;
+  color: string;
+  size: number;
+}) {
+  return typeof icon === 'string' ? (
+    <Text accessible={false} style={{ color, fontSize: size }}>
+      {icon}
+    </Text>
+  ) : (
+    <Image
+      accessible={false}
+      source={icon}
+      style={{ width: size, height: size, tintColor: color }}
+    />
+  );
+}
+
+export function ThemeSelector({
+  compact = false,
+  onBrandPaper = false,
+}: {
+  compact?: boolean;
+  onBrandPaper?: boolean;
+}) {
+  const { mode, colors, setMode, persistenceError } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const hasSpectrum = supportsSpectrum();
   if (compact) {
+    const order = THEME_ORDER.filter((value) => !isSpectrumMode(value) || hasSpectrum);
+    const next = order[(order.indexOf(mode) + 1) % order.length] ?? 'dark';
     return (
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={mode === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'}
-        onPress={() => void setMode(mode === 'dark' ? 'light' : 'dark')}
-        style={styles.toggle}
+        accessibilityLabel={`Сменить тему. Сейчас: ${THEMES[mode].label}. Следующая: ${THEMES[next].label}`}
+        onPress={() => void setMode(next)}
+        style={[
+          styles.toggle,
+          onBrandPaper && { backgroundColor: colors.brandPaper, borderColor: '#486154' },
+        ]}
       >
-        <Text style={styles.toggleIcon}>{mode === 'dark' ? '☀' : '☾'}</Text>
+        <ThemeIcon
+          icon={THEMES[mode].icon}
+          color={onBrandPaper ? '#14281D' : colors.secondary}
+          size={22}
+        />
       </Pressable>
     );
   }
@@ -30,18 +94,25 @@ export function ThemeSelector({ compact = false }: { compact?: boolean }) {
         accessibilityRole="radiogroup"
         accessibilityLabel="Оформление приложения"
       >
-        {OPTIONS.map((option) => (
+        {OPTIONS.filter(({ value }) => !isSpectrumMode(value) || hasSpectrum).map((option) => (
           <Pressable
-            key={option.mode}
+            key={option.value}
             accessibilityRole="radio"
-            accessibilityLabel={option.mode === 'dark' ? 'Тёмная тема' : 'Светлая тема'}
-            accessibilityState={{ checked: mode === option.mode }}
-            onPress={() => void setMode(option.mode)}
-            style={[styles.option, mode === option.mode && styles.selected]}
+            accessibilityLabel={option.label}
+            accessibilityState={{ checked: mode === option.value }}
+            onPress={() => void setMode(option.value)}
+            style={[styles.option, mode === option.value && styles.selected]}
           >
-            <Text style={[styles.label, mode === option.mode && styles.selectedLabel]}>
-              {option.label}
-            </Text>
+            <View style={styles.optionContent}>
+              <ThemeIcon
+                icon={option.icon}
+                color={mode === option.value ? colors.secondary : colors.textSecondary}
+                size={16}
+              />
+              <Text style={[styles.label, mode === option.value && styles.selectedLabel]}>
+                {option.label}
+              </Text>
+            </View>
           </Pressable>
         ))}
       </View>
@@ -57,9 +128,10 @@ export function ThemeSelector({ compact = false }: { compact?: boolean }) {
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     container: { gap: 8 },
-    row: { flexDirection: 'row', gap: 8 },
+    row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     option: {
-      flex: 1,
+      flexBasis: '46%',
+      flexGrow: 1,
       minHeight: 52,
       borderWidth: 1,
       borderColor: colors.border,
@@ -69,7 +141,14 @@ const createStyles = (colors: ThemeColors) =>
       justifyContent: 'center',
     },
     selected: { backgroundColor: colors.mintMuted, borderColor: colors.secondary },
-    label: { color: colors.textSecondary, fontSize: 15, fontWeight: '600' },
+    optionContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    label: {
+      flexShrink: 1,
+      color: colors.textSecondary,
+      fontSize: 15,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
     selectedLabel: { color: colors.secondary },
     toggle: {
       width: 44,
@@ -81,6 +160,5 @@ const createStyles = (colors: ThemeColors) =>
       borderWidth: 1,
       borderColor: colors.border,
     },
-    toggleIcon: { color: colors.secondary, fontSize: 22 },
     error: { color: colors.error, fontSize: 13 },
   });

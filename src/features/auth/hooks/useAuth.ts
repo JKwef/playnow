@@ -17,7 +17,8 @@ import type { SteamAuthService } from '../services/steamAuthService';
  * signingIn — идёт вход через Steam (экран входа остаётся, кнопка заблокирована);
  * signedIn  — есть пользователь.
  */
-export type AuthStatus = 'unknown' | 'signedOut' | 'signingIn' | 'signedIn';
+export type AuthStatus =
+  'unknown' | 'signedOut' | 'signingIn' | 'signedIn' | 'signedInEmail' | 'demoAdmin';
 
 export interface AuthUser {
   /** SteamID64, например "76561197960287930". */
@@ -37,7 +38,8 @@ export interface AuthState {
   signOut: () => Promise<void>;
 }
 
-export const selectIsAuthenticated = (state: AuthState): boolean => state.status === 'signedIn';
+export const selectIsAuthenticated = (state: AuthState): boolean =>
+  state.status === 'signedIn' || state.status === 'signedInEmail';
 export const selectIsBusy = (state: AuthState): boolean =>
   state.status === 'unknown' || state.status === 'signingIn';
 
@@ -89,7 +91,9 @@ export const createAuthStore = (deps: AuthStoreDeps): UseBoundStore<StoreApi<Aut
         if (user !== null) {
           if (user.steamId !== get().user?.steamId) operation += 1;
           set({ status: 'signedIn', user, error: null });
-        } else if (event === 'SIGNED_OUT' && get().status === 'signedIn') {
+        } else if (session?.user.email) {
+          set({ status: 'signedInEmail', user: null, error: null });
+        } else if (event === 'SIGNED_OUT' && selectIsAuthenticated(get())) {
           operation += 1;
           set({ status: 'signedOut', user: null });
         }
@@ -113,8 +117,11 @@ export const createAuthStore = (deps: AuthStoreDeps): UseBoundStore<StoreApi<Aut
           if (currentOperation !== operation) return;
           if (error) throw error;
           const user = userFromSession(data.session);
+          if (user === null && data.session?.user.email) {
+            set({ status: 'signedInEmail', user: null });
+            return;
+          }
           if (user === null && data.session !== null) {
-            // Сессия есть, но без steam_id: это не наш пользователь. Чистим локально.
             await auth.signOut({ scope: 'local' });
           }
           if (currentOperation !== operation) return;

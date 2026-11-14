@@ -1,7 +1,9 @@
+import { AppText as Text } from '@/shared/components/AppText';
 import type { RootStackScreenProps } from '@/navigation/types';
 import type { ThemeColors } from '@/shared/constants/colors';
 import { useThemedStyles } from '@/shared/theme/useTheme';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { useState } from 'react';
 
 import { selectIsBusy, useAuth } from '@/features/auth/hooks/useAuth';
 import { BrandIntro } from '@/shared/components/BrandIntro';
@@ -9,6 +11,7 @@ import { Button } from '@/shared/components/Button';
 import { Screen } from '@/shared/components/Screen';
 import { ThemeSelector } from '@/shared/components/ThemeSelector';
 import { fontSize, spacing } from '@/shared/constants';
+import { AccountAuth } from './AccountAuth';
 
 export function LoginScreen({ navigation }: RootStackScreenProps<'Login'>) {
   const styles = useThemedStyles(createStyles);
@@ -16,9 +19,11 @@ export function LoginScreen({ navigation }: RootStackScreenProps<'Login'>) {
   const signIn = useAuth((state) => state.signIn);
   const isBusy = useAuth(selectIsBusy);
   const error = useAuth((state) => state.error);
+  const [accountAuth, setAccountAuth] = useState(false);
 
   return (
-    <Screen withTopInset centered>
+    <Screen withTopInset centered showBrandBar={false}>
+      {accountAuth && <AccountAuth onClose={() => setAccountAuth(false)} />}
       <View style={styles.topline}>
         <View style={styles.dot} />
         <Text style={styles.eyebrow}>МЕНЬШЕ ВЫБОРА. БОЛЬШЕ ИГРЫ.</Text>
@@ -64,6 +69,12 @@ export function LoginScreen({ navigation }: RootStackScreenProps<'Login'>) {
           {error}
         </Text>
       )}
+      <Button
+        label="Войти или зарегистрироваться"
+        variant="tertiary"
+        disabled={isBusy}
+        onPress={() => setAccountAuth(true)}
+      />
       <Text style={styles.trust}>Пароль остаётся в Steam. Нужна открытая библиотека игр.</Text>
     </Screen>
   );

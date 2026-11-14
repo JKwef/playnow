@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
-import { lightColors } from '@/shared/constants/colors';
+import { lightColors, themePalettes } from '@/shared/constants/colors';
 import { ThemeProvider, THEME_STORAGE_KEY, type ThemeStorage } from '@/shared/theme/ThemeProvider';
 import { useTheme } from '@/shared/theme/useTheme';
 
@@ -28,6 +28,12 @@ it('restores the saved light palette before rendering the app', async () => {
   expect(result.current.mode).toBe('light');
   expect(result.current.colors).toBe(lightColors);
   expect(storage.getItem).toHaveBeenCalledWith(THEME_STORAGE_KEY);
+});
+
+it.each(['glass', 'green', 'burgundy'] as const)('restores the saved %s palette', async (mode) => {
+  const { result } = await setup(mode);
+  expect(result.current.mode).toBe(mode);
+  expect(result.current.colors).toBe(themePalettes[mode]);
 });
 
 it('defaults to dark for an absent or invalid saved preference', async () => {

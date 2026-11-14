@@ -5,7 +5,7 @@ const HERO = [
   [12, 0, 22, 4, '#604713'],
   [8, 4, 30, 5, '#51380C'],
   [8, 9, 10, 15, '#51380C'],
-  [18, 9, 16, 5, '#FFF4D4'],
+  [18, 9, 20, 5, '#FFF4D4'],
   [14, 14, 24, 14, '#FFF4D4'],
   [23, 17, 3, 4, '#111912'],
   [33, 17, 3, 4, '#111912'],
@@ -20,15 +20,37 @@ const HERO = [
   [31, 50, 5, 9, '#595B58'],
 ] as const;
 
-export function PixelHero() {
+export function PixelHero({
+  scale = 1,
+  alignPixels = false,
+  eyesOpen = true,
+}: {
+  scale?: number;
+  alignPixels?: boolean;
+  eyesOpen?: boolean;
+}) {
+  // A half-size eye otherwise spans 1.5 logical pixels and can appear uneven.
+  const size = (value: number) => {
+    const scaled = value * scale;
+    return alignPixels ? Math.round(scaled) : scaled;
+  };
   return (
-    <View style={{ width: 40, height: 60 }}>
-      {HERO.map(([left, top, width, height, backgroundColor], index) => (
-        <View
-          key={index}
-          style={{ position: 'absolute', left, top, width, height, backgroundColor }}
-        />
-      ))}
+    <View style={{ width: 40 * scale, height: 60 * scale }}>
+      {HERO.map(([left, top, width, height, backgroundColor], index) =>
+        !eyesOpen && top === 17 ? null : (
+          <View
+            key={index}
+            style={{
+              position: 'absolute',
+              left: size(left),
+              top: size(top),
+              width: size(width),
+              height: size(height),
+              backgroundColor,
+            }}
+          />
+        ),
+      )}
     </View>
   );
 }

@@ -1,3 +1,5 @@
+import { useDesktopHeader } from '@/shared/hooks/useDesktopHeader';
+import { DemoMenu } from '@/features/demo/screens/DemoMenu';
 import type { ThemeColors } from '@/shared/constants/colors';
 import { useThemedStyles } from '@/shared/theme/useTheme';
 import Constants from 'expo-constants';
@@ -5,12 +7,12 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useBacklog } from '@/features/backlog/hooks/useBacklog';
 import { Button } from '@/shared/components/Button';
 import { BrandIntro } from '@/shared/components/BrandIntro';
-import { BrandHeader } from '@/shared/components/BrandLogo';
 import { Card } from '@/shared/components/Card';
 import { Screen } from '@/shared/components/Screen';
 import { ThemeSelector } from '@/shared/components/ThemeSelector';
@@ -25,6 +27,8 @@ import { PickerSyncPanel } from '@/features/picker/components/PickerSyncPanel';
 
 /** Настройки (FR6.1, UI2): обновить бэклог, выйти, удалить аккаунт, версия, политика. */
 export function SettingsScreen() {
+  const desktopHeader = useDesktopHeader();
+  const navigation = useNavigation();
   const styles = useThemedStyles(createStyles);
   const [intro, setIntro] = useState(false);
 
@@ -55,7 +59,6 @@ export function SettingsScreen() {
 
   return (
     <Screen>
-      <BrandHeader />
       <Text style={styles.secondary}>Меньше времени на выбор. Больше — на игру.</Text>
       <Text accessibilityRole="header" style={styles.section}>
         Оформление
@@ -93,6 +96,18 @@ export function SettingsScreen() {
         Аккаунт
       </Text>
       <PickerSyncPanel games={backlog.games} />
+      {!desktopHeader && (
+        <DemoMenu
+          onSettings={() => navigation.navigate('AccountSettings')}
+          onFavorites={() => navigation.navigate('Demo', { favorites: true })}
+          onAcceptInvitation={(sessionId) => navigation.navigate('Demo', { sessionId })}
+        />
+      )}
+      <Button
+        label="Логин и пароль"
+        variant="secondary"
+        onPress={() => navigation.navigate('AccountSettings')}
+      />
       <Card style={styles.card}>
         {steamId !== null ? <SettingsRow label="Steam ID" value={steamId} /> : null}
         <Button

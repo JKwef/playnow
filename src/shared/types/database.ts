@@ -119,6 +119,10 @@ export interface Database {
     };
     Views: Record<never, never>;
     Functions: {
+      friendly_invitation: {
+        Args: { action: string; target?: string; query?: string; selected?: number[] };
+        Returns: Json;
+      };
       write_picker_sync: {
         Args: {
           expected_user_id: string;

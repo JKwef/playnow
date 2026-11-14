@@ -1,5 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useFonts } from 'expo-font';
+import { fontFamily } from '@/shared/constants';
 import { StatusBar } from 'expo-status-bar';
 import * as WebBrowser from 'expo-web-browser';
 import * as SystemUI from 'expo-system-ui';
@@ -13,7 +15,7 @@ import { RootNavigator } from '@/navigation/RootNavigator';
 import { createNavigationTheme } from '@/navigation/theme';
 import { LoadingIndicator } from '@/shared/components/LoadingIndicator';
 import { ThemeProvider } from '@/shared/theme/ThemeProvider';
-import { useTheme } from '@/shared/theme/useTheme';
+import { themeColorScheme, useTheme } from '@/shared/theme/useTheme';
 import { PickerSyncBridge } from '@/features/picker/hooks/usePickerSync';
 
 // Веб-версия (проверка на ПК): вход через Steam идёт во всплывающем окне, которое
@@ -39,6 +41,13 @@ export default function App() {
 
   useEffect(() => bindAccountQueries(queryClient), [queryClient]);
 
+  const [fontsLoaded, fontError] = useFonts({
+    [fontFamily.regular]: require('../assets/fonts/Inter-Regular.ttf'),
+    [fontFamily.display]: require('../assets/fonts/RussoOne-Regular.ttf'),
+    [fontFamily.bold]: require('../assets/fonts/Inter-Bold.ttf'),
+  });
+  if (!fontsLoaded && !fontError) return <LoadingIndicator fullScreen />;
+
   return (
     <SafeAreaProvider>
       <ThemeProvider>
@@ -53,13 +62,14 @@ export default function App() {
 
 function ThemedNavigation() {
   const { mode, colors } = useTheme();
+  const colorScheme = themeColorScheme(mode);
   const navigationTheme = useMemo(() => createNavigationTheme(mode, colors), [mode, colors]);
   useEffect(() => {
-    if (Platform.OS !== 'web') Appearance.setColorScheme(mode);
+    if (Platform.OS !== 'web') Appearance.setColorScheme(colorScheme);
     void SystemUI.setBackgroundColorAsync(colors.background).catch((error: unknown) =>
       console.warn('system background update failed', error),
     );
-  }, [colors.background, mode]);
+  }, [colors.background, colorScheme]);
   return (
     <>
       <NavigationContainer
@@ -69,7 +79,7 @@ function ThemedNavigation() {
       >
         <RootNavigator />
       </NavigationContainer>
-      <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style="dark" />
     </>
   );
 }

@@ -162,7 +162,11 @@ async function runCase(theme, width) {
       false,
     );
     await screenshot('demo');
+    await page.reload();
+    await button('Подобрать примерную игру').waitFor();
+    assert.equal(await page.getByText(/Примерный выбор принят только в демо/).count(), 0);
     await button('Вернуться ко входу в Steam').click();
+    await button('Попробовать без входа').waitFor();
     await page.evaluate(({ key, value }) => localStorage.setItem(key, JSON.stringify(value)), {
       key: authKey,
       value: session(account),
@@ -242,6 +246,7 @@ async function runCase(theme, width) {
       );
       await screenshot('optional-refusal');
     }
+    const savedChoice = await page.evaluate((key) => localStorage.getItem(key), choiceKey);
     await page.goto(origin);
     await page.getByText('Последний принятый выбор', { exact: true }).waitFor();
     assert.equal(
@@ -251,6 +256,10 @@ async function runCase(theme, width) {
     apiOffline = true;
     await page.reload();
     await page.getByText('Последний принятый выбор', { exact: true }).waitFor();
+    await page.getByText('Portal 2', { exact: true }).waitFor();
+    assert.equal(await page.evaluate((key) => localStorage.getItem(key), choiceKey), savedChoice);
+    await page.getByText('Последний принятый выбор', { exact: true }).scrollIntoViewIfNeeded();
+    await screenshot('accepted-choice-after-reload');
     await tab('Библиотека').click();
     await page.getByRole('button', { name: /Portal 2/ }).waitFor();
     await screenshot('cached-library');
@@ -389,6 +398,7 @@ async function runCase(theme, width) {
       status: 'pass',
       checks: [
         'guest-demo-isolation',
+        'demo-reload-return-to-login',
         'tab-state',
         'accepted-choice-reload',
         'cached-library-with-api-unavailable',

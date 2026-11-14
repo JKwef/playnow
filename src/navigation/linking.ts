@@ -23,6 +23,8 @@ export const linking: LinkingOptions<RootStackParamList> = {
     screens: {
       Login: 'login',
       Demo: 'demo',
+      DemoFriend: 'demo/friends/:friendId',
+      AccountSettings: 'account/settings',
       RecommendationHistory: 'recommendations',
       Main: { screens: { Picker: '', Backlog: 'games', Settings: 'settings' } },
       GameDetails: {

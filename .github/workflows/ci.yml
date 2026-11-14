@@ -21,7 +21,7 @@ jobs:
           node-version: 24
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.122.1
       - name: Start local database and apply migrations
         run: |
           supabase db start
@@ -36,6 +36,8 @@ jobs:
         run: node scripts/test-library.mjs
       - name: Picker sync revision checks, account isolation and deletion
         run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f supabase/tests/picker_sync.sql
+      - name: Shared companion votes and participant isolation
+        run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f supabase/tests/friendly_swipes.sql
 
   functions:
     name: Edge Functions types and tests

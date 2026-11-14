@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 460" role="img" aria-label="Smiling mint keyboard keycap mascot">
+  <ellipse cx="260" cy="405" rx="143" ry="13" fill="#223E33" opacity=".12"/>
+  <g stroke="#102B23" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M153 211c-28 12-47 11-58-12-4-8-6-17-7-25m0 0-12-14m12 14 4-19m-4 19 16-9M394 202c40 4 59 31 45 61l-8 14m8-14 9 8m-17 6-10-6" fill="none"/>
+    <path d="M199 294c3 32 1 61-13 86m96-86c-1 35 5 62 18 86" fill="none"/>
+    <path d="M189 376c-12-6-29-3-39 4-9 6-5 15 5 15h35c11 0 9-14-1-19Zm109 0c12-6 30-2 41 4 9 6 5 15-5 15h-35c-11 0-11-14-1-19Z" fill="#102B23"/>
+    <path d="M166 141l50-55q8-9 22-8l112 10q12 1 18 12l21 48 17 92q3 13-8 23l-58 46q-8 6-21 6l-161-12q-19-2-16-20Z" fill="#65D6A6"/>
+    <path d="m347 174 42-26 17 92q3 13-8 23l-58 46q-6 5-17 6Z" fill="#2D986F" stroke="none"/>
+    <path d="m166 141 50-55q8-9 22-8l112 10q12 1 18 12l21 48-42 29q-8 6-20 5l-150-16q-19-2-11-25Z" fill="#A6EBC8" stroke-width="6"/>
+    <path d="m347 177-23 137" fill="none" stroke-width="6"/>
+  </g>
+  <g fill="#102B23">
+    <ellipse cx="213" cy="223" rx="8" ry="12"/>
+    <ellipse cx="266" cy="227" rx="8" ry="12"/>
+  </g>
+  <path d="M223 249q13 19 29 2" fill="none" stroke="#102B23" stroke-width="6" stroke-linecap="round"/>
+</svg>

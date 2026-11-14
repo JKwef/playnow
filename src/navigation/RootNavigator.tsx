@@ -1,3 +1,6 @@
+import { useDesktopHeader } from '@/shared/hooks/useDesktopHeader';
+import { DemoMenu } from '@/features/demo/screens/DemoMenu';
+import { BrandBar } from '@/shared/components/BrandBar';
 import { useThemeColors } from '@/shared/theme/useTheme';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useEffect } from 'react';
@@ -11,6 +14,8 @@ import { ResultScreen } from '@/features/picker/screens/ResultScreen';
 import { LoadingIndicator } from '@/shared/components/LoadingIndicator';
 import { MainNavigator } from '@/navigation/MainNavigator';
 import { DemoScreen } from '@/features/demo/screens/DemoScreen';
+import { AccountSettingsScreen } from '@/features/auth/screens/AccountScreen';
+import { DemoFriendScreen } from '@/features/demo/screens/DemoFriends';
 import { RecommendationHistoryScreen } from '@/features/picker/screens/RecommendationHistoryScreen';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -33,6 +38,7 @@ declare module '@react-navigation/core' {
  * не вернёт на экран входа (и наоборот). Это рекомендованный паттерн auth flow.
  */
 export function RootNavigator() {
+  const desktopHeader = useDesktopHeader();
   const colors = useThemeColors();
 
   const status = useAuth((state) => state.status);
@@ -51,17 +57,51 @@ export function RootNavigator() {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: colors.background },
-        headerShadowVisible: false,
-        headerTintColor: colors.textPrimary,
+        header: ({ back, navigation, route }) => (
+          <BrandBar
+            {...(back ? { onBack: navigation.goBack } : {})}
+            controls={
+              desktopHeader && (
+                <DemoMenu
+                  onBrandPaper
+                  onOpenFriend={(friendId) => navigation.navigate('DemoFriend', { friendId })}
+                  onSettings={() => navigation.navigate('AccountSettings')}
+                  onFavorites={() => navigation.navigate('Demo', { favorites: true })}
+                  onAcceptInvitation={(sessionId) => navigation.navigate('Demo', { sessionId })}
+                  {...(route.name === 'Demo'
+                    ? { onJoin: () => navigation.navigate('Demo', { demoInvite: true }) }
+                    : {})}
+                />
+              )
+            }
+          />
+        ),
         contentStyle: { backgroundColor: colors.background },
-        headerBackButtonDisplayMode: 'minimal',
       }}
     >
-      {status !== 'signedIn' ? (
-        <Stack.Group>
+      {status === 'signedInEmail' || (__DEV__ && status === 'demoAdmin') ? (
+        <Stack.Group navigationKey="local-account">
+          <Stack.Screen name="Demo" component={DemoScreen} options={{ title: 'Подбор' }} />
+          <Stack.Screen
+            name="DemoFriend"
+            component={DemoFriendScreen}
+            options={{ title: 'Профиль друга' }}
+          />
+          <Stack.Screen
+            name="AccountSettings"
+            component={AccountSettingsScreen}
+            options={{ title: 'Настройки аккаунта' }}
+          />
+        </Stack.Group>
+      ) : status !== 'signedIn' ? (
+        <Stack.Group navigationKey="guest">
           <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Demo" component={DemoScreen} options={{ title: 'Пример подбора' }} />
+          <Stack.Screen
+            name="DemoFriend"
+            component={DemoFriendScreen}
+            options={{ title: 'Профиль друга' }}
+          />
         </Stack.Group>
       ) : (
         // После загрузки библиотеки открываются основные вкладки.
@@ -72,6 +112,17 @@ export function RootNavigator() {
             options={{ headerShown: false, gestureEnabled: false }}
           />
           <Stack.Screen name="Main" component={MainNavigator} options={{ headerShown: false }} />
+          <Stack.Screen name="Demo" component={DemoScreen} options={{ title: 'Пример подбора' }} />
+          <Stack.Screen
+            name="DemoFriend"
+            component={DemoFriendScreen}
+            options={{ title: 'Профиль друга' }}
+          />
+          <Stack.Screen
+            name="AccountSettings"
+            component={AccountSettingsScreen}
+            options={{ title: 'Настройки аккаунта' }}
+          />
           <Stack.Screen name="Result" component={ResultScreen} options={{ title: 'Ваша игра' }} />
           <Stack.Screen
             name="RecommendationHistory"

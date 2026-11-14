@@ -1,9 +1,9 @@
+import { AppText as Text } from '@/shared/components/AppText';
 import type { ThemeColors } from '@/shared/constants/colors';
 import { useThemedStyles } from '@/shared/theme/useTheme';
 import {
   Pressable,
   StyleSheet,
-  Text,
   type PressableProps,
   type StyleProp,
   type TextStyle,

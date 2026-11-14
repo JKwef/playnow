@@ -1,5 +1,10 @@
+import { useDesktopHeader } from '@/shared/hooks/useDesktopHeader';
+import { DemoMenu } from '@/features/demo/screens/DemoMenu';
+import { useNavigation } from '@react-navigation/native';
+import { AppText as Text } from '@/shared/components/AppText';
+import { BrandBar } from '@/shared/components/BrandBar';
 import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickerScreen } from '@/features/picker/screens/PickerScreen';
@@ -57,14 +62,28 @@ function NavigationBar({ state, navigation }: BottomTabBarProps) {
 }
 
 export function MainNavigator() {
+  const desktopHeader = useDesktopHeader();
+  const navigation = useNavigation();
   const colors = useThemeColors();
   return (
     <Tabs.Navigator
       tabBar={(props) => <NavigationBar {...props} />}
       screenOptions={{
-        headerStyle: { backgroundColor: colors.background },
-        headerTintColor: colors.textPrimary,
-        headerShadowVisible: false,
+        header: () => (
+          <BrandBar
+            controls={
+              desktopHeader && (
+                <DemoMenu
+                  onBrandPaper
+                  onOpenFriend={(friendId) => navigation.navigate('DemoFriend', { friendId })}
+                  onSettings={() => navigation.navigate('AccountSettings')}
+                  onFavorites={() => navigation.navigate('Demo', { favorites: true })}
+                  onAcceptInvitation={(sessionId) => navigation.navigate('Demo', { sessionId })}
+                />
+              )
+            }
+          />
+        ),
         sceneStyle: { backgroundColor: colors.background },
       }}
     >

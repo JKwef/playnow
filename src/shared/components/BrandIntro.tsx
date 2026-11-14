@@ -15,65 +15,74 @@ import {
 
 import { PixelCursor, PixelHero } from './PixelHero';
 
+export const COMPACT_BRAND_SIZE = 56;
+export const BRAND_HEADER_WIDTH = 176;
 export const BRAND_INTRO_DURATION_MS = 3600;
 
 /** Одна временная шкала синхронизирует прыжок, сальто, Play, клик и финальный логотип. */
-export function BrandIntro({ allowReplay = false }: { allowReplay?: boolean }) {
+export function BrandIntro({
+  allowReplay = false,
+  compact = false,
+  inHeader = false,
+  replayRequest = 0,
+  headerWidth = BRAND_HEADER_WIDTH,
+}: {
+  allowReplay?: boolean;
+  compact?: boolean;
+  inHeader?: boolean;
+  replayRequest?: number;
+  headerWidth?: number;
+}) {
   const styles = useThemedStyles(createStyles);
 
   const [time] = useState(() => new Animated.Value(BRAND_INTRO_DURATION_MS));
   const [run, setRun] = useState(0);
   const [finished, setFinished] = useState(true);
-  const [reducedMotion, setReducedMotion] = useState(true);
+  const [reducedMotion, setReducedMotion] = useState<boolean | null>(null);
   const [width, setWidth] = useState(320);
 
   useEffect(() => {
     let active = true;
-    let animation: Animated.CompositeAnimation | undefined;
     let motionChanged = false;
-    const settle = () => {
-      animation?.stop();
-      time.setValue(BRAND_INTRO_DURATION_MS);
-      if (active) setFinished(true);
-    };
-    const start = (reduced: boolean) => {
-      if (!active) return;
-      setReducedMotion(reduced);
-      if (reduced) {
-        settle();
-        return;
-      }
-      setFinished(false);
-      time.setValue(0);
-      animation = Animated.timing(time, {
-        toValue: BRAND_INTRO_DURATION_MS,
-        duration: BRAND_INTRO_DURATION_MS,
-        easing: Easing.linear,
-        useNativeDriver: Platform.OS !== 'web',
-        isInteraction: false,
-      });
-      animation.start(({ finished: completed }) => {
-        if (active && completed) setFinished(true);
-      });
-    };
     const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', (reduced) => {
       motionChanged = true;
-      if (reduced) {
-        setReducedMotion(true);
-        settle();
-      } else if (active) setReducedMotion(false);
+      setReducedMotion(reduced);
     });
     void AccessibilityInfo.isReduceMotionEnabled()
       .then((reduced) => {
-        if (!motionChanged) start(reduced);
+        if (active && !motionChanged) setReducedMotion(reduced);
       })
-      .catch(settle);
+      .catch(() => {
+        if (active && !motionChanged) setReducedMotion(true);
+      });
     return () => {
       active = false;
-      animation?.stop();
       subscription.remove();
     };
-  }, [run, time]);
+  }, []);
+
+  useEffect(() => {
+    if (reducedMotion !== false || (inHeader && replayRequest === 0)) {
+      time.setValue(BRAND_INTRO_DURATION_MS);
+      return;
+    }
+    const frame = inHeader ? null : requestAnimationFrame(() => setFinished(false));
+    time.setValue(0);
+    const animation = Animated.timing(time, {
+      toValue: BRAND_INTRO_DURATION_MS,
+      duration: BRAND_INTRO_DURATION_MS,
+      easing: Easing.linear,
+      useNativeDriver: Platform.OS !== 'web',
+      isInteraction: false,
+    });
+    animation.start(({ finished: completed }) => {
+      if (completed && !inHeader) setFinished(true);
+    });
+    return () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      animation.stop();
+    };
+  }, [inHeader, reducedMotion, replayRequest, run, time]);
 
   const interpolate = (inputRange: number[], outputRange: number[]) =>
     time.interpolate({ inputRange, outputRange, extrapolate: 'clamp' });
@@ -84,8 +93,14 @@ export function BrandIntro({ allowReplay = false }: { allowReplay?: boolean }) {
   };
 
   return (
-    <View style={styles.panel} testID="brand-intro">
-      <View style={styles.frame} onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
+    <View
+      style={[styles.panel, compact && styles.compact, inHeader && styles.headerPanel]}
+      testID="brand-intro"
+    >
+      <View
+        style={[styles.frame, compact && styles.compactFrame]}
+        onLayout={inHeader ? undefined : (event) => setWidth(event.nativeEvent.layout.width)}
+      >
         <Animated.View
           pointerEvents="none"
           accessible
@@ -95,13 +110,20 @@ export function BrandIntro({ allowReplay = false }: { allowReplay?: boolean }) {
             styles.scene,
             {
               opacity: interpolate([0, 2960, 3340], [1, 1, 0]),
-              transform: [{ scale: width / 320 }],
+              transform: [
+                {
+                  scale: compact
+                    ? COMPACT_BRAND_SIZE / 158
+                    : (inHeader ? headerWidth : width) / 320,
+                },
+              ],
             },
           ]}
         >
           <View style={styles.halo} />
           <View style={styles.ring} />
           <View style={styles.counter} />
+          <View style={styles.qTail} />
           <View style={styles.steps}>
             {[0, 1, 2, 3, 4].map((step) => (
               <View
@@ -163,6 +185,7 @@ export function BrandIntro({ allowReplay = false }: { allowReplay?: boolean }) {
             testID="brand-play"
             style={[
               styles.play,
+              compact && styles.compactPlay,
               {
                 opacity: interpolate([0, 1650, 1950], [0, 0, 1]),
                 transform: [
@@ -181,6 +204,7 @@ export function BrandIntro({ allowReplay = false }: { allowReplay?: boolean }) {
           <Animated.View
             style={[
               styles.ripple,
+              compact && styles.compactRipple,
               {
                 opacity: interpolate([0, 2720, 2760, 3090], [0, 0, 0.7, 0]),
                 transform: [{ scale: interpolate([0, 2720, 3090], [0.7, 0.7, 1.65]) }],
@@ -191,6 +215,7 @@ export function BrandIntro({ allowReplay = false }: { allowReplay?: boolean }) {
             testID="brand-cursor"
             style={[
               styles.cursor,
+              compact && styles.compactCursor,
               {
                 opacity: interpolate([0, 2000, 2130, 2860, 3060], [0, 0, 1, 1, 0]),
                 transform: [
@@ -220,14 +245,18 @@ export function BrandIntro({ allowReplay = false }: { allowReplay?: boolean }) {
         >
           <Image
             testID="brand-wordmark"
-            source={require('../../../assets/brand/quaeso-logo.png')}
+            source={
+              compact
+                ? require('../../../assets/brand/quaeso-icon.png')
+                : require('../../../assets/brand/quaeso-logo.png')
+            }
             style={styles.image}
             resizeMode="contain"
             accessibilityLabel="QUAESO"
           />
         </Animated.View>
       </View>
-      {!reducedMotion && (!finished || allowReplay) && (
+      {!compact && !inHeader && reducedMotion === false && (!finished || allowReplay) && (
         <Pressable
           onPress={finished ? () => setRun((current) => current + 1) : skip}
           accessibilityRole="button"
@@ -254,7 +283,22 @@ const createStyles = (colors: ThemeColors) =>
       width: '100%',
       overflow: 'hidden',
     },
+    headerPanel: { paddingHorizontal: 0, paddingTop: 0, paddingBottom: 0, borderRadius: 12 },
+    compact: {
+      width: COMPACT_BRAND_SIZE,
+      height: COMPACT_BRAND_SIZE,
+      paddingHorizontal: 0,
+      paddingTop: 0,
+      paddingBottom: 0,
+      borderRadius: 12,
+    },
     frame: { width: '100%', aspectRatio: 2.02 },
+    compactFrame: {
+      width: COMPACT_BRAND_SIZE,
+      height: COMPACT_BRAND_SIZE,
+      aspectRatio: 1,
+      overflow: 'hidden',
+    },
     scene: {
       position: 'absolute',
       width: 320,
@@ -290,6 +334,19 @@ const createStyles = (colors: ThemeColors) =>
       top: 29,
       backgroundColor: '#FFFFFF',
     },
+    qTail: {
+      position: 'absolute',
+      left: 109,
+      top: 112,
+      width: 0,
+      height: 0,
+      borderTopWidth: 22,
+      borderBottomWidth: 22,
+      borderLeftWidth: 36,
+      borderTopColor: 'transparent',
+      borderBottomColor: 'transparent',
+      borderLeftColor: '#3ACA80',
+    },
     hero: { position: 'absolute', left: 67, top: 51 },
     steps: { position: 'absolute', left: 58, top: 94, width: 55, height: 25 },
     shadow: {
@@ -312,6 +369,9 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    compactPlay: { left: 103, top: 92, width: 48, height: 48 },
+    compactRipple: { left: 103, top: 92, width: 48, height: 48 },
+    compactCursor: { left: 128, top: 116 },
     triangle: {
       width: 0,
       height: 0,
