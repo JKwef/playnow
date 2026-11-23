@@ -10,7 +10,7 @@ Play Console → **App content → App access**. Приложение требу
 - В инструкции указать тестовые данные и шаги (готовый текст ниже).
 - Email поддержки — тот же, что в листинге (`support@playnow.app`, placeholder).
 - Если появится отдельное поле для URL удаления аккаунта — указать
-  `https://jkwef.github.io/playnow/account-deletion.html`.
+  `https://github.com/JKwef/playnow/blob/main/docs/account-deletion.md`.
 
 ## Готовый текст для поля инструкций
 

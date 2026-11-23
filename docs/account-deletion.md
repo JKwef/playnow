@@ -52,26 +52,3 @@ Quaeso хранит данные для входа и профиль. Если �
 ## Вопросы
 
 По любым вопросам о данных: **support@playnow.app**.
-
----
-
-## Для владельца репозитория: как включить GitHub Pages
-
-Публичная страница нужна Google Play как «Delete account URL» — она должна открываться
-без установки приложения. Перед публикацией замените `support@playnow.app` на реальный
-рабочий адрес поддержки (в этом файле и в `docs/PRIVACY.md`).
-
-1. Запушьте `docs/account-deletion.md` (и `docs/PRIVACY.md`) в ветку `main` репозитория
-   `JKwef/playnow`.
-2. На GitHub откройте **Settings → Pages**.
-3. В **Build and deployment → Source** выберите **Deploy from a branch**.
-4. Ветка — `main`, папка — **`/docs`**, нажмите **Save**.
-5. Через 1–2 минуты страница будет доступна по адресу
-   `https://jkwef.github.io/playnow/account-deletion.html`
-   (Markdown автоматически превращается в HTML).
-6. Проверьте адрес в режиме инкогнито и укажите его:
-   - в Play Console → **App content → Data safety → Delete account URL**;
-   - в политике конфиденциальности и в приложении (кнопка удаления остаётся в настройках).
-
-Если GitHub Pages уже включены для другой папки, используйте существующий адрес и
-подставьте его в ссылки в `docs/PRIVACY.md` и в Play Console.

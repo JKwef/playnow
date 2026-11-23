@@ -83,10 +83,8 @@ Corporation, RAWG — сервис rawg.io; приложение лишь исп
 
 - **Email разработчика:** support@playnow.app (placeholder — заменить перед отправкой)
 - **Сайт:** не обязателен, можно указать страницу удаления аккаунта.
-- **Политика конфиденциальности:** `https://jkwef.github.io/playnow/PRIVACY.html`
-  (после включения GitHub Pages; сейчас в `app.json → extra.privacyPolicyUrl` указан
-  GitHub-адрес файла — Lead обновит).
-- **Удаление аккаунта:** `https://jkwef.github.io/playnow/account-deletion.html`.
+- **Политика конфиденциальности:** `https://github.com/JKwef/playnow/blob/main/docs/PRIVACY.md`.
+- **Удаление аккаунта:** `https://github.com/JKwef/playnow/blob/main/docs/account-deletion.md`.
 
 ## «Что нового» (пример для первого релиза)
 
