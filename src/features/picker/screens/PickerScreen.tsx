@@ -113,7 +113,7 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
         {!desktopHeader && (
           <DemoMenu
             onSettings={() => navigation.navigate('AccountSettings')}
-            onFavorites={() => navigation.navigate('Demo', { favorites: true })}
+            onFavorites={() => navigation.navigate('Favorites')}
             onAcceptInvitation={(sessionId) => navigation.navigate('Demo', { sessionId })}
           />
         )}
@@ -202,7 +202,7 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
             ? status === 'error'
               ? 'Библиотека недоступна'
               : 'Загружаем библиотеку…'
-            : `${games.length} игр в библиотеке`}
+            : `Игр в библиотеке: ${games.length}`}
         </Text>
         <Text style={styles.statusTag}>{genresStatus === 'loading' ? 'Жанры…' : 'STEAM'}</Text>
       </View>

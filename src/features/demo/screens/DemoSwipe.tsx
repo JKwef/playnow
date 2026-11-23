@@ -1,3 +1,7 @@
+import type { RootStackScreenProps } from '@/navigation/types';
+import { useBacklog } from '@/features/backlog/hooks/useBacklog';
+import { Screen } from '@/shared/components/Screen';
+import { useSoloFavorites } from './SoloFavoritesContext';
 import { AppText as Text } from '@/shared/components/AppText';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef, useState } from 'react';
@@ -107,6 +111,22 @@ function GameCover({ card }: { card: (typeof cards)[number] }) {
   );
 }
 
+function LibraryMembership({ appid }: { appid: number }) {
+  const { games, status } = useBacklog();
+  const colors = useThemeColors();
+  return (
+    <Text style={{ color: colors.textSecondary }}>
+      {games
+        ? games.some((game) => game.appid === appid)
+          ? 'Есть в вашей библиотеке Quaeso'
+          : 'В вашей библиотеке Quaeso не найдена'
+        : status === 'loading'
+          ? 'Загружаем библиотеку…'
+          : 'Проверка библиотеки недоступна'}
+    </Text>
+  );
+}
+
 function FavoriteRow({
   card,
   onRemove,
@@ -119,6 +139,7 @@ function FavoriteRow({
   const colors = useThemeColors();
   const [expanded, setExpanded] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const status = useAuth((state) => state.status);
   const [focused, setFocused] = useState(false);
   const { width } = useWindowDimensions();
   const showTools = Platform.OS !== 'web' || width < 700 || hovered || focused || expanded;
@@ -178,9 +199,15 @@ function FavoriteRow({
           <Text style={{ color: colors.textSecondary }}>
             {card.genre} · {card.year}
           </Text>
-          <Text style={{ color: colors.textSecondary }}>
-            Библиотека: войди через Steam для проверки
-          </Text>
+          {status === 'signedIn' ? (
+            <LibraryMembership appid={card.appid} />
+          ) : (
+            <Text style={{ color: colors.textSecondary }}>
+              {status === 'signedInEmail'
+                ? 'Библиотека Steam не подключена.'
+                : 'Библиотека: войди через Steam для проверки'}
+            </Text>
+          )}
           <Text style={{ color: colors.textPrimary }}>{card.description}</Text>
           <Button
             label="Посмотреть цену в Steam"
@@ -226,7 +253,7 @@ export function DemoSwipe({
   shortcut,
 }: {
   onOpenFriend: (friendId: string) => void;
-  shortcut: { target: 'favorites' | 'invite'; sessionId?: string } | null;
+  shortcut: { target: 'favorites' | 'invite' | 'solo'; sessionId?: string } | null;
 }) {
   const colors = useThemeColors();
   const [mode, setMode] = useState<'solo' | 'companion'>(
@@ -944,6 +971,107 @@ function SharedSwipeDeck({
   );
 }
 
+export function FavoritesScreen({ navigation }: RootStackScreenProps<'Favorites'>) {
+  const personal = useSoloFavorites();
+  if (!personal) return null;
+  const [favorites, setFavorites] = personal;
+  return (
+    <Screen>
+      <SwipeFavorites
+        favorites={favorites}
+        onRemove={(appid) => setFavorites((current) => current.filter((id) => id !== appid))}
+        cardsLabel="К карточкам игр"
+        onCards={() => navigation.navigate('Demo', { solo: true })}
+      />
+    </Screen>
+  );
+}
+
+function SwipeFavorites({
+  favorites,
+  onRemove,
+  onCards,
+  cardsLabel,
+  onOpenFriend,
+}: {
+  favorites: number[];
+  onRemove: (id: number) => void;
+  onCards: () => void;
+  cardsLabel: string;
+  onOpenFriend?: ((id: string) => void) | undefined;
+}) {
+  const colors = useThemeColors();
+  const [favoriteTab, setFavoriteTab] = useState<'mine' | 'friends'>('mine');
+  const [launchError, setLaunchError] = useState(false);
+  return (
+    <View style={styles.content}>
+      <Text accessibilityRole="header" style={[styles.title, { color: colors.textPrimary }]}>
+        Избранное
+      </Text>
+      <Button label={cardsLabel} variant="secondary" onPress={onCards} />
+      <View accessibilityRole="tablist" style={styles.actions}>
+        {(['mine', 'friends'] as const).map((tab) => (
+          <Pressable
+            key={tab}
+            accessibilityRole="tab"
+            aria-selected={tab === favoriteTab}
+            accessibilityState={{ selected: tab === favoriteTab }}
+            onPress={() => setFavoriteTab(tab)}
+            style={[
+              styles.action,
+              {
+                backgroundColor: tab === favoriteTab ? colors.mintMuted : colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={{ color: colors.textPrimary, textAlign: 'center' }}>
+              {tab === 'mine' ? 'Избранное у себя' : 'Избранное у друзей'}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      {favoriteTab === 'friends' ? (
+        onOpenFriend ? (
+          <DemoFriends onOpen={onOpenFriend} />
+        ) : (
+          <Text style={{ color: colors.textSecondary }}>
+            Избранное других игроков пока недоступно.
+          </Text>
+        )
+      ) : (
+        <>
+          {favorites.length === 0 && (
+            <Text style={{ color: colors.textSecondary }}>Пока ничего не добавлено.</Text>
+          )}
+          {favorites.map((appid) => {
+            const favorite = cards.find((item) => item.appid === appid)!;
+            return (
+              <FavoriteRow
+                key={appid}
+                card={favorite}
+                onRemove={() => onRemove(appid)}
+                onPlay={() => {
+                  setLaunchError(false);
+                  const desktop = Platform.OS === 'web' && isDesktopBrowser(navigator.userAgent);
+                  void Linking.openURL(desktop ? steamRunUrl(appid) : steamStoreUrl(appid))
+                    .catch(() => Linking.openURL(steamStoreUrl(appid)))
+                    .catch(() => setLaunchError(true));
+                }}
+              />
+            );
+          })}
+          {launchError && (
+            <Text accessibilityRole="alert" style={{ color: colors.error }}>
+              Не удалось открыть Steam.
+            </Text>
+          )}
+        </>
+      )}
+    </View>
+  );
+}
+
 function SwipeDeck({
   onOpenFriend,
   active,
@@ -969,15 +1097,17 @@ function SwipeDeck({
   });
   const [index, setIndex] = useState(draft?.index ?? 0);
   const [likes, setLikes] = useState(draft?.favorites.length ?? 0);
-  const [favorites, setFavorites] = useState<number[]>(draft?.favorites ?? []);
+  const localFavorites = useState<number[]>(draft?.favorites ?? []);
+  const personal = useSoloFavorites();
+  const authenticated = useAuth(selectIsAuthenticated);
+  const [favorites, setFavorites] =
+    authenticated && !onFinish && personal ? personal : localFavorites;
   const [showFavorites, setShowFavorites] = useState(openFavorites !== null);
   const [lastFavoritesRequest, setLastFavoritesRequest] = useState(openFavorites);
   if (lastFavoritesRequest !== openFavorites) {
     setLastFavoritesRequest(openFavorites);
     if (openFavorites) setShowFavorites(true);
   }
-  const [favoriteTab, setFavoriteTab] = useState<'mine' | 'friends'>('mine');
-  const [launchError, setLaunchError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [offset] = useState(() => new Animated.Value(0));
   const [reducedMotion, setReducedMotion] = useState(true);
@@ -1093,7 +1223,6 @@ function SwipeDeck({
       variant="secondary"
       disabled={busy}
       onPress={() => {
-        setLaunchError(false);
         setShowFavorites(true);
       }}
     />
@@ -1118,68 +1247,13 @@ function SwipeDeck({
   }
   if (showFavorites) {
     return (
-      <View style={styles.content}>
-        <Text accessibilityRole="header" style={[styles.title, { color: colors.textPrimary }]}>
-          Избранное
-        </Text>
-        <Button
-          label="Вернуться к карточкам"
-          variant="secondary"
-          onPress={() => setShowFavorites(false)}
-        />
-        <View accessibilityRole="tablist" style={styles.actions}>
-          {(['mine', 'friends'] as const).map((tab) => (
-            <Pressable
-              key={tab}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: tab === favoriteTab }}
-              onPress={() => setFavoriteTab(tab)}
-              style={[
-                styles.action,
-                {
-                  backgroundColor: tab === favoriteTab ? colors.mintMuted : colors.surface,
-                  borderColor: colors.border,
-                },
-              ]}
-            >
-              <Text style={{ color: colors.textPrimary, textAlign: 'center' }}>
-                {tab === 'mine' ? 'Избранное у себя' : 'Избранное у друзей'}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-        {favoriteTab === 'friends' ? (
-          <DemoFriends onOpen={onOpenFriend} />
-        ) : (
-          <>
-            {favorites.length === 0 && (
-              <Text style={{ color: colors.textSecondary }}>Пока ничего не добавлено.</Text>
-            )}
-            {favorites.map((appid) => {
-              const favorite = cards.find((item) => item.appid === appid)!;
-              return (
-                <FavoriteRow
-                  key={appid}
-                  card={favorite}
-                  onRemove={() => setFavorites((current) => current.filter((id) => id !== appid))}
-                  onPlay={() => {
-                    setLaunchError(false);
-                    const desktop = Platform.OS === 'web' && isDesktopBrowser(navigator.userAgent);
-                    void Linking.openURL(desktop ? steamRunUrl(appid) : steamStoreUrl(appid))
-                      .catch(() => Linking.openURL(steamStoreUrl(appid)))
-                      .catch(() => setLaunchError(true));
-                  }}
-                />
-              );
-            })}
-            {launchError && (
-              <Text accessibilityRole="alert" style={{ color: colors.error }}>
-                Не удалось открыть Steam.
-              </Text>
-            )}
-          </>
-        )}
-      </View>
+      <SwipeFavorites
+        favorites={favorites}
+        onRemove={(appid) => setFavorites((current) => current.filter((id) => id !== appid))}
+        onCards={() => setShowFavorites(false)}
+        cardsLabel="Вернуться к карточкам"
+        onOpenFriend={authenticated ? undefined : onOpenFriend}
+      />
     );
   }
 

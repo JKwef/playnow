@@ -180,6 +180,24 @@ async function runCase(theme, width) {
     });
     await page.reload();
     await button('Подобрать игру  →').waitFor({ state: 'visible' });
+    await button('Открыть меню').click();
+    await button('Избранное').click();
+    await page.waitForURL('**/favorites');
+    await tab('Избранное у друзей').click();
+    await page.getByText('Избранное других игроков пока недоступно.').waitFor();
+    assert.equal(await button('MintKnight').count(), 0);
+    await button('К карточкам игр').click();
+    await button('Понравилась игра').click();
+    await button('Избранное (1)').waitFor();
+    await button('Открыть меню').click();
+    await button('Избранное').click();
+    await page.waitForURL('**/favorites');
+    await page.getByRole('button', { name: /^Подробнее о / }).click();
+    await page.getByText(/в вашей библиотеке Quaeso/i).waitFor();
+    await page.getByRole('button', { name: /^Удалить / }).click();
+    await page.getByText('Пока ничего не добавлено.').waitFor();
+    await page.goto(origin);
+    await button('Подобрать игру  →').waitFor();
     if (purchaseChecks) {
       await checkPurchasePicks(page);
       assert.deepEqual(errors, []);

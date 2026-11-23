@@ -99,7 +99,7 @@ export function SettingsScreen() {
       {!desktopHeader && (
         <DemoMenu
           onSettings={() => navigation.navigate('AccountSettings')}
-          onFavorites={() => navigation.navigate('Demo', { favorites: true })}
+          onFavorites={() => navigation.navigate('Favorites')}
           onAcceptInvitation={(sessionId) => navigation.navigate('Demo', { sessionId })}
         />
       )}

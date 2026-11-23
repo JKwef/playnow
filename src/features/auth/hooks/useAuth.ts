@@ -26,6 +26,7 @@ export interface AuthUser {
 }
 
 export interface AuthState {
+  emailAccountId?: string;
   status: AuthStatus;
   user: AuthUser | null;
   /** Текст последней ошибки для показа пользователю; сбрасывается при новой попытке. */
@@ -92,7 +93,12 @@ export const createAuthStore = (deps: AuthStoreDeps): UseBoundStore<StoreApi<Aut
           if (user.steamId !== get().user?.steamId) operation += 1;
           set({ status: 'signedIn', user, error: null });
         } else if (session?.user.email) {
-          set({ status: 'signedInEmail', user: null, error: null });
+          set({
+            status: 'signedInEmail',
+            user: null,
+            emailAccountId: session.user.id,
+            error: null,
+          });
         } else if (event === 'SIGNED_OUT' && selectIsAuthenticated(get())) {
           operation += 1;
           set({ status: 'signedOut', user: null });
@@ -118,7 +124,7 @@ export const createAuthStore = (deps: AuthStoreDeps): UseBoundStore<StoreApi<Aut
           if (error) throw error;
           const user = userFromSession(data.session);
           if (user === null && data.session?.user.email) {
-            set({ status: 'signedInEmail', user: null });
+            set({ status: 'signedInEmail', user: null, emailAccountId: data.session.user.id });
             return;
           }
           if (user === null && data.session !== null) {

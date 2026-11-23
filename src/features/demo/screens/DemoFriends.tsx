@@ -1,5 +1,6 @@
 import { AppText as Text } from '@/shared/components/AppText';
 import { useState } from 'react';
+import { selectIsAuthenticated, useAuth } from '@/features/auth/hooks/useAuth';
 import { Pressable, TextInput, View } from 'react-native';
 
 import type { RootStackScreenProps } from '@/navigation/types';
@@ -106,7 +107,10 @@ export function DemoFriends({ onOpen }: { onOpen: (friendId: string) => void }) 
 
 export function DemoFriendScreen({ route }: RootStackScreenProps<'DemoFriend'>) {
   const colors = useThemeColors();
-  const friend = exampleFriends.find(({ id }) => id === route.params?.friendId);
+  const authenticated = useAuth(selectIsAuthenticated);
+  const friend = authenticated
+    ? undefined
+    : exampleFriends.find(({ id }) => id === route.params?.friendId);
   return (
     <Screen>
       <Text

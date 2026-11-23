@@ -2,7 +2,7 @@ import { useDesktopHeader } from '@/shared/hooks/useDesktopHeader';
 import { DemoMenu } from '@/features/demo/screens/DemoMenu';
 import { PixelCheck } from '@/shared/components/PixelCheck';
 import { AppText as Text } from '@/shared/components/AppText';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import type { Game } from '@/features/backlog/types/Game';
@@ -16,7 +16,7 @@ import { Button } from '@/shared/components/Button';
 import { Screen } from '@/shared/components/Screen';
 import { useThemeColors } from '@/shared/theme/useTheme';
 import { DemoSwipe } from './DemoSwipe';
-import { useAuth } from '@/features/auth/hooks/useAuth';
+import { selectIsAuthenticated, useAuth } from '@/features/auth/hooks/useAuth';
 
 // Fictional examples stay in this screen's memory. No account, cache or external links.
 const examples: readonly Game[] = ['Лабиринт', 'Ещё один круг', 'Затерянный мир', 'Рывок'].flatMap(
@@ -35,6 +35,11 @@ const examples: readonly Game[] = ['Лабиринт', 'Ещё один круг
 export function DemoScreen({ navigation, route }: RootStackScreenProps<'Demo'>) {
   const desktopHeader = useDesktopHeader();
   const colors = useThemeColors();
+  const authenticated = useAuth(selectIsAuthenticated);
+  const legacyFavorites = authenticated && route?.params?.favorites && !route.params.sessionId;
+  useEffect(() => {
+    if (legacyFavorites) navigation.replace('Favorites');
+  }, [legacyFavorites, navigation]);
   const account = useAuth(
     (state) =>
       state.status === 'signedIn' ||
@@ -42,10 +47,15 @@ export function DemoScreen({ navigation, route }: RootStackScreenProps<'Demo'>) 
       state.status === 'demoAdmin',
   );
   const [swipe, setSwipe] = useState(
-    Boolean(route?.params?.favorites || route?.params?.sessionId || route?.params?.demoInvite),
+    Boolean(
+      route?.params?.solo ||
+      route?.params?.favorites ||
+      route?.params?.sessionId ||
+      route?.params?.demoInvite,
+    ),
   );
   const [shortcut, setShortcut] = useState<{
-    target: 'favorites' | 'invite';
+    target: 'favorites' | 'invite' | 'solo';
     sessionId?: string;
   } | null>(
     route?.params?.sessionId
@@ -68,6 +78,9 @@ export function DemoScreen({ navigation, route }: RootStackScreenProps<'Demo'>) 
     } else if (route?.params?.favorites) {
       setShortcut({ target: 'favorites' });
       setSwipe(true);
+    } else if (route?.params?.solo) {
+      setShortcut({ target: 'solo' });
+      setSwipe(true);
     }
   }
   const [context, setContext] = useState(PICKER_CONTEXTS[0]!);
@@ -83,6 +96,7 @@ export function DemoScreen({ navigation, route }: RootStackScreenProps<'Demo'>) 
     setAccepted(false);
   };
   const text = { color: colors.textPrimary, fontSize: 16 };
+  if (legacyFavorites) return null;
   return (
     <Screen
       footer={
@@ -95,6 +109,10 @@ export function DemoScreen({ navigation, route }: RootStackScreenProps<'Demo'>) 
         <DemoMenu
           onSettings={() => navigation.navigate('AccountSettings')}
           onFavorites={() => {
+            if (authenticated) {
+              navigation.navigate('Favorites');
+              return;
+            }
             setShortcut({ target: 'favorites' });
             setSwipe(true);
           }}
@@ -156,7 +174,9 @@ export function DemoScreen({ navigation, route }: RootStackScreenProps<'Demo'>) 
       {swipe ? (
         <>
           <Text style={text}>
-            Демо · подборка игр Steam. Избранное хранится до выхода из режима.
+            {authenticated
+              ? 'Подборка игр Steam. Понравившиеся игры из одиночного режима остаются в вашем избранном до конца текущего сеанса.'
+              : 'Демо · подборка игр Steam. Избранное хранится до выхода из режима.'}
           </Text>
           <DemoSwipe
             shortcut={shortcut}
@@ -166,8 +186,10 @@ export function DemoScreen({ navigation, route }: RootStackScreenProps<'Demo'>) 
       ) : (
         <>
           <Text style={text}>
-            Демо · примерная библиотека, 8 вымышленных игр. Вход не выполнен. Данные не сохраняются
-            и не попадут в твой аккаунт.
+            Демо · примерная библиотека, 8 вымышленных игр.{' '}
+            {account
+              ? 'Выбор в этой пробе остаётся только на экране.'
+              : 'Вход не выполнен. Данные не сохраняются и не попадут в твой аккаунт.'}
           </Text>
           <View style={{ gap: 8 }}>
             {(['new', 'continue'] as const).map((value) => (

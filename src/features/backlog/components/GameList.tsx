@@ -72,7 +72,7 @@ export function GameList({
       ListEmptyComponent={ListEmptyComponent}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
+      keyboardDismissMode={Platform.OS === 'web' ? 'none' : 'on-drag'}
       initialNumToRender={12}
       maxToRenderPerBatch={12}
       windowSize={9}

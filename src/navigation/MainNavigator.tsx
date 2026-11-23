@@ -77,7 +77,7 @@ export function MainNavigator() {
                   onBrandPaper
                   onOpenFriend={(friendId) => navigation.navigate('DemoFriend', { friendId })}
                   onSettings={() => navigation.navigate('AccountSettings')}
-                  onFavorites={() => navigation.navigate('Demo', { favorites: true })}
+                  onFavorites={() => navigation.navigate('Favorites')}
                   onAcceptInvitation={(sessionId) => navigation.navigate('Demo', { sessionId })}
                 />
               )

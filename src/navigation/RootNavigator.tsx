@@ -14,6 +14,8 @@ import { ResultScreen } from '@/features/picker/screens/ResultScreen';
 import { LoadingIndicator } from '@/shared/components/LoadingIndicator';
 import { MainNavigator } from '@/navigation/MainNavigator';
 import { DemoScreen } from '@/features/demo/screens/DemoScreen';
+import { FavoritesScreen } from '@/features/demo/screens/DemoSwipe';
+import { SoloFavoritesProvider } from '@/features/demo/screens/SoloFavoritesContext';
 import { AccountSettingsScreen } from '@/features/auth/screens/AccountScreen';
 import { DemoFriendScreen } from '@/features/demo/screens/DemoFriends';
 import { RecommendationHistoryScreen } from '@/features/picker/screens/RecommendationHistoryScreen';
@@ -43,6 +45,13 @@ export function RootNavigator() {
   const colors = useThemeColors();
 
   const status = useAuth((state) => state.status);
+  const favoritesOwner = useAuth((state) =>
+    state.status === 'signedIn'
+      ? state.user?.steamId
+      : state.status === 'signedInEmail'
+        ? state.emailAccountId
+        : undefined,
+  );
   const restoreSession = useAuth((state) => state.restoreSession);
 
   // Один раз при старте пытаемся поднять сохранённую сессию (FR1.3).
@@ -56,102 +65,128 @@ export function RootNavigator() {
   }
 
   return (
-    <Stack.Navigator
-      screenOptions={{
-        header: ({ back, navigation, route }) => (
-          <BrandBar
-            {...(back ? { onBack: navigation.goBack } : {})}
-            controls={
-              desktopHeader && (
-                <DemoMenu
-                  onBrandPaper
-                  onOpenFriend={(friendId) => navigation.navigate('DemoFriend', { friendId })}
-                  onSettings={() => navigation.navigate('AccountSettings')}
-                  onFavorites={() => navigation.navigate('Demo', { favorites: true })}
-                  onAcceptInvitation={(sessionId) => navigation.navigate('Demo', { sessionId })}
-                  {...(route.name === 'Demo'
-                    ? { onJoin: () => navigation.navigate('Demo', { demoInvite: true }) }
-                    : {})}
-                />
-              )
-            }
-          />
-        ),
-        contentStyle: { backgroundColor: colors.background },
-      }}
-    >
-      {status === 'signedInEmail' || (__DEV__ && status === 'demoAdmin') ? (
-        <Stack.Group navigationKey="local-account">
-          <Stack.Screen name="Demo" component={DemoScreen} options={{ title: 'Подбор' }} />
-          <Stack.Screen
-            name="DemoFriend"
-            component={DemoFriendScreen}
-            options={{ title: 'Профиль друга' }}
-          />
-          <Stack.Screen
-            name="AccountSettings"
-            component={AccountSettingsScreen}
-            options={{ title: 'Настройки аккаунта' }}
-          />
-        </Stack.Group>
-      ) : status !== 'signedIn' ? (
-        <Stack.Group navigationKey="guest">
-          <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="Demo" component={DemoScreen} options={{ title: 'Пример подбора' }} />
-          <Stack.Screen
-            name="DemoFriend"
-            component={DemoFriendScreen}
-            options={{ title: 'Профиль друга' }}
-          />
-        </Stack.Group>
-      ) : (
-        // После загрузки библиотеки открываются основные вкладки.
-        <Stack.Group>
-          <Stack.Screen
-            name="BacklogLoading"
-            component={BacklogLoadingScreen}
-            options={{ headerShown: false, gestureEnabled: false }}
-          />
-          <Stack.Screen name="Main" component={MainNavigator} options={{ headerShown: false }} />
-          <Stack.Screen name="Demo" component={DemoScreen} options={{ title: 'Пример подбора' }} />
-          <Stack.Screen
-            name="DemoFriend"
-            component={DemoFriendScreen}
-            options={{ title: 'Профиль друга' }}
-          />
-          <Stack.Screen
-            name="AccountSettings"
-            component={AccountSettingsScreen}
-            options={{ title: 'Настройки аккаунта' }}
-          />
-          <Stack.Screen name="Result" component={ResultScreen} options={{ title: 'Ваша игра' }} />
-          <Stack.Screen
-            name="PurchasePicks"
-            component={PurchasePicksScreen}
-            options={{ title: 'Что купить' }}
-          />
-          <Stack.Screen
-            name="RecommendationHistory"
-            component={RecommendationHistoryScreen}
-            options={{ title: 'История рекомендаций' }}
-          />
-          <Stack.Screen
-            name="GameDetails"
-            component={GameDetailsScreen}
-            options={{ title: 'Игра' }}
-          />
-          <Stack.Screen
-            name="AddGame"
-            component={AddGameScreen}
-            options={{ title: 'Новая игра' }}
-          />
-          <Stack.Screen
-            name="Postponed"
-            component={PostponedScreen}
-            options={{ title: 'Отложенные' }}
-          />
-        </Stack.Group>
-      )}
-    </Stack.Navigator>
+    <SoloFavoritesProvider key={favoritesOwner ?? 'public'}>
+      <Stack.Navigator
+        screenOptions={{
+          header: ({ back, navigation, route }) => (
+            <BrandBar
+              {...(back ? { onBack: navigation.goBack } : {})}
+              controls={
+                desktopHeader && (
+                  <DemoMenu
+                    onBrandPaper
+                    onOpenFriend={(friendId) => navigation.navigate('DemoFriend', { friendId })}
+                    onSettings={() => navigation.navigate('AccountSettings')}
+                    onFavorites={() =>
+                      status === 'signedIn' || status === 'signedInEmail'
+                        ? navigation.navigate('Favorites')
+                        : navigation.navigate('Demo', { favorites: true })
+                    }
+                    onAcceptInvitation={(sessionId) => navigation.navigate('Demo', { sessionId })}
+                    {...(route.name === 'Demo'
+                      ? { onJoin: () => navigation.navigate('Demo', { demoInvite: true }) }
+                      : {})}
+                  />
+                )
+              }
+            />
+          ),
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      >
+        {status === 'signedInEmail' || (__DEV__ && status === 'demoAdmin') ? (
+          <Stack.Group navigationKey="local-account">
+            <Stack.Screen name="Demo" component={DemoScreen} options={{ title: 'Подбор' }} />
+            {status === 'signedInEmail' && (
+              <Stack.Screen
+                name="Favorites"
+                component={FavoritesScreen}
+                options={{ title: 'Избранное' }}
+              />
+            )}
+            <Stack.Screen
+              name="DemoFriend"
+              component={DemoFriendScreen}
+              options={{ title: 'Профиль друга' }}
+            />
+            <Stack.Screen
+              name="AccountSettings"
+              component={AccountSettingsScreen}
+              options={{ title: 'Настройки аккаунта' }}
+            />
+          </Stack.Group>
+        ) : status !== 'signedIn' ? (
+          <Stack.Group navigationKey="guest">
+            <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+            <Stack.Screen
+              name="Demo"
+              component={DemoScreen}
+              options={{ title: 'Пример подбора' }}
+            />
+            <Stack.Screen
+              name="DemoFriend"
+              component={DemoFriendScreen}
+              options={{ title: 'Профиль друга' }}
+            />
+          </Stack.Group>
+        ) : (
+          // После загрузки библиотеки открываются основные вкладки.
+          <Stack.Group>
+            <Stack.Screen
+              name="BacklogLoading"
+              component={BacklogLoadingScreen}
+              options={{ headerShown: false, gestureEnabled: false }}
+            />
+            <Stack.Screen name="Main" component={MainNavigator} options={{ headerShown: false }} />
+            <Stack.Screen
+              name="Favorites"
+              component={FavoritesScreen}
+              options={{ title: 'Избранное' }}
+            />
+            <Stack.Screen
+              name="Demo"
+              component={DemoScreen}
+              options={{ title: 'Пример подбора' }}
+            />
+            <Stack.Screen
+              name="DemoFriend"
+              component={DemoFriendScreen}
+              options={{ title: 'Профиль друга' }}
+            />
+            <Stack.Screen
+              name="AccountSettings"
+              component={AccountSettingsScreen}
+              options={{ title: 'Настройки аккаунта' }}
+            />
+            <Stack.Screen name="Result" component={ResultScreen} options={{ title: 'Ваша игра' }} />
+            <Stack.Screen
+              name="PurchasePicks"
+              component={PurchasePicksScreen}
+              options={{ title: 'Что купить' }}
+            />
+            <Stack.Screen
+              name="RecommendationHistory"
+              component={RecommendationHistoryScreen}
+              options={{ title: 'История рекомендаций' }}
+            />
+            <Stack.Screen
+              name="GameDetails"
+              component={GameDetailsScreen}
+              options={{ title: 'Игра' }}
+            />
+            <Stack.Screen
+              name="AddGame"
+              component={AddGameScreen}
+              options={{ title: 'Новая игра' }}
+            />
+            <Stack.Screen
+              name="Postponed"
+              component={PostponedScreen}
+              options={{ title: 'Отложенные' }}
+            />
+          </Stack.Group>
+        )}
+      </Stack.Navigator>
+    </SoloFavoritesProvider>
   );
 }

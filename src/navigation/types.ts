@@ -13,7 +13,9 @@ export type MainTabParamList = { Picker: undefined; Backlog: undefined; Settings
 export type RootStackParamList = {
   // Неавторизованная зона
   Login: undefined;
-  Demo: { favorites?: boolean; sessionId?: string; demoInvite?: boolean } | undefined;
+  Demo:
+    { favorites?: boolean; sessionId?: string; demoInvite?: boolean; solo?: boolean } | undefined;
+  Favorites: undefined;
   DemoFriend: { friendId: string };
   AccountSettings: undefined;
   // Авторизованная зона
