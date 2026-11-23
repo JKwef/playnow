@@ -972,6 +972,10 @@ function SharedSwipeDeck({
 }
 
 export function FavoritesScreen({ navigation }: RootStackScreenProps<'Favorites'>) {
+  return <AccountFavorites onCards={() => navigation.navigate('Demo', { solo: true })} />;
+}
+
+export function AccountFavorites({ onCards }: { onCards: () => void }) {
   const personal = useSoloFavorites();
   if (!personal) return null;
   const [favorites, setFavorites] = personal;
@@ -981,7 +985,7 @@ export function FavoritesScreen({ navigation }: RootStackScreenProps<'Favorites'
         favorites={favorites}
         onRemove={(appid) => setFavorites((current) => current.filter((id) => id !== appid))}
         cardsLabel="К карточкам игр"
-        onCards={() => navigation.navigate('Demo', { solo: true })}
+        onCards={onCards}
       />
     </Screen>
   );

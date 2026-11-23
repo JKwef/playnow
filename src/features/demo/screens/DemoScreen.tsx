@@ -2,7 +2,7 @@ import { useDesktopHeader } from '@/shared/hooks/useDesktopHeader';
 import { DemoMenu } from '@/features/demo/screens/DemoMenu';
 import { PixelCheck } from '@/shared/components/PixelCheck';
 import { AppText as Text } from '@/shared/components/AppText';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import type { Game } from '@/features/backlog/types/Game';
@@ -15,7 +15,7 @@ import type { RootStackScreenProps } from '@/navigation/types';
 import { Button } from '@/shared/components/Button';
 import { Screen } from '@/shared/components/Screen';
 import { useThemeColors } from '@/shared/theme/useTheme';
-import { DemoSwipe } from './DemoSwipe';
+import { AccountFavorites, DemoSwipe } from './DemoSwipe';
 import { selectIsAuthenticated, useAuth } from '@/features/auth/hooks/useAuth';
 
 // Fictional examples stay in this screen's memory. No account, cache or external links.
@@ -37,9 +37,6 @@ export function DemoScreen({ navigation, route }: RootStackScreenProps<'Demo'>) 
   const colors = useThemeColors();
   const authenticated = useAuth(selectIsAuthenticated);
   const legacyFavorites = authenticated && route?.params?.favorites && !route.params.sessionId;
-  useEffect(() => {
-    if (legacyFavorites) navigation.replace('Favorites');
-  }, [legacyFavorites, navigation]);
   const account = useAuth(
     (state) =>
       state.status === 'signedIn' ||
@@ -96,7 +93,8 @@ export function DemoScreen({ navigation, route }: RootStackScreenProps<'Demo'>) 
     setAccepted(false);
   };
   const text = { color: colors.textPrimary, fontSize: 16 };
-  if (legacyFavorites) return null;
+  if (legacyFavorites)
+    return <AccountFavorites onCards={() => navigation.navigate('Demo', { solo: true })} />;
   return (
     <Screen
       footer={

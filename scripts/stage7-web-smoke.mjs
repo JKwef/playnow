@@ -174,11 +174,20 @@ async function runCase(theme, width) {
     assert.equal(await page.getByText(/Примерный выбор принят только в демо/).count(), 0);
     await button('Вернуться ко входу в Steam').click();
     await button('Попробовать без входа').waitFor();
+    const emailProfile = session(undefined);
+    emailProfile.user.email = 'player@example.test';
+    await page.evaluate(({ key, value }) => localStorage.setItem(key, JSON.stringify(value)), {
+      key: authKey,
+      value: emailProfile,
+    });
+    await page.goto(origin + '/demo?favorites=true');
+    await tab('Избранное у друзей').click();
+    await page.getByText('Избранное других игроков пока недоступно.').waitFor();
     await page.evaluate(({ key, value }) => localStorage.setItem(key, JSON.stringify(value)), {
       key: authKey,
       value: session(account),
     });
-    await page.reload();
+    await page.goto(origin);
     await button('Подобрать игру  →').waitFor({ state: 'visible' });
     await button('Открыть меню').click();
     await button('Избранное').click();
@@ -196,6 +205,11 @@ async function runCase(theme, width) {
     await page.getByText(/в вашей библиотеке Quaeso/i).waitFor();
     await page.getByRole('button', { name: /^Удалить / }).click();
     await page.getByText('Пока ничего не добавлено.').waitFor();
+    await page.goto(origin + '/demo?favorites=true');
+    await tab('Избранное у друзей').click();
+    await page.getByText('Избранное других игроков пока недоступно.').waitFor();
+    await button('К карточкам игр').click();
+    await button('Понравилась игра').waitFor();
     await page.goto(origin);
     await button('Подобрать игру  →').waitFor();
     if (purchaseChecks) {
