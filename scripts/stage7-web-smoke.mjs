@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { readFile, readdir, mkdir, stat, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { resolve, extname, sep } from 'node:path';
+import { checkPurchasePicks, fulfillCatalog } from './purchase-smoke.mjs';
 
 // Run against an exported build, with isolated synthetic accounts and no live API traffic.
 const require = createRequire(import.meta.url);
@@ -13,18 +14,21 @@ const dist = resolve(process.argv[2] || '.tools/stage7-web');
 const stabilityChecks = process.argv.includes('--stability');
 const refusalChecks = process.argv.includes('--refusals');
 const installationChecks = process.argv.includes('--installed');
+const purchaseChecks = process.argv.includes('--purchases');
 const historyChecks =
   process.argv.includes('--history') || stabilityChecks || refusalChecks || installationChecks;
 const artifacts = resolve(
-  installationChecks
-    ? '.tools/stage11-qa'
-    : refusalChecks
-      ? '.tools/stage10-qa'
-      : stabilityChecks
-        ? '.tools/stage9-qa'
-        : historyChecks
-          ? '.tools/stage8-qa'
-          : '.tools/stage7-qa',
+  purchaseChecks
+    ? '.tools/purchase-qa'
+    : installationChecks
+      ? '.tools/stage11-qa'
+      : refusalChecks
+        ? '.tools/stage10-qa'
+        : stabilityChecks
+          ? '.tools/stage9-qa'
+          : historyChecks
+            ? '.tools/stage8-qa'
+            : '.tools/stage7-qa',
 );
 await stat(resolve(dist, 'index.html'));
 await mkdir(artifacts, { recursive: true });
@@ -128,6 +132,7 @@ async function runCase(theme, width) {
     const url = new URL(route.request().url());
     if (url.origin === origin) return route.continue();
     if (url.origin !== apiOrigin || apiOffline) return route.abort();
+    if (purchaseChecks && url.pathname.endsWith('/steam-catalog')) return fulfillCatalog(route);
     const body = url.pathname.endsWith('/steam-library')
       ? { games: rows }
       : url.pathname.endsWith('/rawg-enrich')
@@ -173,6 +178,13 @@ async function runCase(theme, width) {
     });
     await page.reload();
     await button('Подобрать игру  →').waitFor({ state: 'visible' });
+    if (purchaseChecks) {
+      await checkPurchasePicks(page);
+      assert.deepEqual(errors, []);
+      await screenshot('purchase-picks');
+      results.push({ theme, width, status: 'pass', checks: ['purchase-picks'] });
+      return;
+    }
     await radio('Продолжить').click();
     await tab('Библиотека').click();
     await page.getByRole('textbox', { name: 'Поиск по названию игры' }).fill('Portal');
@@ -469,5 +481,5 @@ try {
   );
 }
 process.stdout.write(
-  `Stage ${installationChecks ? 11 : refusalChecks ? 10 : stabilityChecks ? 9 : historyChecks ? 8 : 7} synthetic web smoke: ${results.length}/4 cases passed. Artifacts: ${artifacts}\n`,
+  `${purchaseChecks ? 'Purchase picks' : 'Stage ' + (installationChecks ? 11 : refusalChecks ? 10 : stabilityChecks ? 9 : historyChecks ? 8 : 7)} synthetic web smoke: ${results.length}/4 cases passed. Artifacts: ${artifacts}\n`,
 );

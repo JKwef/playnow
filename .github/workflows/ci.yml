@@ -51,11 +51,20 @@ jobs:
         with:
           deno-version: v2.x
 
-      - name: Typecheck entry points
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install locked npm dependencies
+        # Deno resolves npm imports through the project's locked node_modules.
+        run: npm ci --ignore-scripts
+
+      - name: Check Edge Function entry points
         run: >-
           deno check --frozen
           supabase/functions/steam-auth/index.ts
           supabase/functions/steam-library/index.ts
+          supabase/functions/steam-catalog/index.ts
           supabase/functions/rawg-enrich/index.ts
           supabase/functions/delete-account/index.ts
 

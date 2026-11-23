@@ -23,6 +23,7 @@ $functions = Join-Path $root 'supabase\functions'
 $targets = @(
   'supabase/functions/steam-auth/index.ts',
   'supabase/functions/steam-library/index.ts',
+  'supabase/functions/steam-catalog/index.ts',
   'supabase/functions/rawg-enrich/index.ts',
   'supabase/functions/delete-account/index.ts'
 )

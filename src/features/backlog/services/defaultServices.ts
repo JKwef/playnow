@@ -22,7 +22,7 @@ export const getGenreOverrides = (): GenreOverridesService => {
 // обложки ещё до 30 с. Оставляем запас на Auth, БД и передачу ответа.
 export const ENRICHMENT_TIMEOUT_MS = 90_000;
 
-const getFunctionsDeps = (): FunctionsClientDeps => {
+export const getFunctionsDeps = (): FunctionsClientDeps => {
   if (functionsDeps === null) {
     const env = getEnv();
     functionsDeps = {

@@ -15,7 +15,7 @@ const sql = (query) => {
   });
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(result.stderr);
-  return result.stdout.trim().split(/\r?\n/).at(-1);
+  return result.stdout.trim();
 };
 
 try {

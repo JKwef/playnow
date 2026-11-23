@@ -195,6 +195,11 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
         <Text style={styles.statusTag}>{genresStatus === 'loading' ? 'Жанры…' : 'STEAM'}</Text>
       </View>
       <BacklogStatusNotice backlog={backlog} />
+      <Button
+        label="Что купить"
+        variant="secondary"
+        onPress={() => navigation.navigate('PurchasePicks')}
+      />
       {blacklist.errorMessage && (
         <View style={styles.notice}>
           <Text accessibilityRole="alert" style={styles.noticeText}>

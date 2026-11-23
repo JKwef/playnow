@@ -17,6 +17,7 @@ import { DemoScreen } from '@/features/demo/screens/DemoScreen';
 import { AccountSettingsScreen } from '@/features/auth/screens/AccountScreen';
 import { DemoFriendScreen } from '@/features/demo/screens/DemoFriends';
 import { RecommendationHistoryScreen } from '@/features/picker/screens/RecommendationHistoryScreen';
+import { PurchasePicksScreen } from '@/features/purchases/screens/PurchasePicksScreen';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
@@ -124,6 +125,11 @@ export function RootNavigator() {
             options={{ title: 'Настройки аккаунта' }}
           />
           <Stack.Screen name="Result" component={ResultScreen} options={{ title: 'Ваша игра' }} />
+          <Stack.Screen
+            name="PurchasePicks"
+            component={PurchasePicksScreen}
+            options={{ title: 'Что купить' }}
+          />
           <Stack.Screen
             name="RecommendationHistory"
             component={RecommendationHistoryScreen}

@@ -26,6 +26,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
       DemoFriend: 'demo/friends/:friendId',
       AccountSettings: 'account/settings',
       RecommendationHistory: 'recommendations',
+      PurchasePicks: 'buy',
       Main: { screens: { Picker: '', Backlog: 'games', Settings: 'settings' } },
       GameDetails: {
         path: 'games/:appid',

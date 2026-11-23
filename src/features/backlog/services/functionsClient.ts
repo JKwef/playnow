@@ -36,6 +36,7 @@ export const callFunction = async (
   deps: FunctionsClientDeps,
   name: string,
   signal?: AbortSignal,
+  parameters: Record<string, unknown> = {},
 ): Promise<Record<string, unknown>> => {
   signal?.throwIfAborted();
   const token = await deps.getAccessToken();
@@ -53,7 +54,7 @@ export const callFunction = async (
         apikey: deps.apiKey,
         'Content-Type': 'application/json',
       },
-      body: '{}',
+      body: JSON.stringify(parameters),
       signal,
     });
   } catch (error) {

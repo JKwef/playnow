@@ -29,6 +29,7 @@ export type RootStackParamList = {
   AddGame: undefined;
   Postponed: undefined;
   RecommendationHistory: undefined;
+  PurchasePicks: undefined;
 };
 
 export type RootStackScreenProps<T extends keyof RootStackParamList | keyof MainTabParamList> =
