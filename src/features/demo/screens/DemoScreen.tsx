@@ -7,6 +7,7 @@ import { Pressable, View } from 'react-native';
 
 import type { Game } from '@/features/backlog/types/Game';
 import { ContextCard } from '@/features/picker/components/ContextCard';
+import { SessionTimeTrial } from '@/features/picker/components/SessionTimeTrial';
 import { PICKER_MODE_LABELS, type PickerMode } from '@/features/picker/types';
 import { PICKER_CONTEXTS } from '@/features/picker/utils/contexts';
 import { filterCandidates, pickGame } from '@/features/picker/utils/pickGame';
@@ -237,6 +238,7 @@ export function DemoScreen({ navigation, route }: RootStackScreenProps<'Demo'>) 
               <Button label="Новый примерный круг" variant="secondary" onPress={reset} />
             </>
           )}
+          <SessionTimeTrial example />
         </>
       )}
     </Screen>

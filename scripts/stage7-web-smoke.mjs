@@ -6,6 +6,7 @@ import { readFile, readdir, mkdir, stat, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { resolve, extname, sep } from 'node:path';
 import { checkPurchasePicks, fulfillCatalog } from './purchase-smoke.mjs';
+import { checkSessionTimeAndSearch } from './session-time-smoke.mjs';
 
 // Run against an exported build, with isolated synthetic accounts and no live API traffic.
 const require = createRequire(import.meta.url);
@@ -155,6 +156,7 @@ async function runCase(theme, width) {
   try {
     await page.goto(origin);
     await button('Попробовать без входа').click();
+    await checkSessionTimeAndSearch(page);
     await button('Подобрать примерную игру').click();
     await button('Выбираю эту примерную игру').click();
     await page.getByText(/Примерный выбор принят только в демо/).waitFor();

@@ -120,6 +120,26 @@ it('counts exclude completed and permanently excluded games without removing lib
   mockPreferences.preferences = new Map();
 });
 
+it('opens an eligible timed game from the library and hides an excluded one', async () => {
+  const original = mockBacklog.games;
+  mockBacklog.games = [
+    makeGame({ appid: 609490, genres: ['puzzle'], steamImported: true }),
+    makeGame({ appid: 1003590, genres: ['puzzle'], steamImported: true }),
+  ];
+  mockPreferences.preferences = new Map([[1003590, { progressStatus: null, excluded: true }]]);
+  try {
+    const screen = await renderPicker();
+    await fireEvent.press(screen.getByRole('button', { name: 'Попробовать подбор по времени' }));
+    await fireEvent.press(screen.getByRole('radio', { name: '5 мин' }));
+    expect(screen.getByText('Minit')).toBeTruthy();
+    expect(screen.queryByText('Tetris Effect: Connected')).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Открыть карточку игры' }));
+    expect(screen.navigate).toHaveBeenCalledWith('GameDetails', { appid: 609490 });
+  } finally {
+    mockBacklog.games = original;
+  }
+});
+
 it('restores the accepted choice on home; another pick does not overwrite it; missing games and account switch are safe', async () => {
   const stored = JSON.stringify({
     game: { appid: 3, name: 'Сохранённая игра' },

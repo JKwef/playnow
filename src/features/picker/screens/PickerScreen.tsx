@@ -19,7 +19,8 @@ import { useBlacklist } from '../hooks/useBlacklist';
 import { usePickerSelection } from '../hooks/usePickerSelection';
 import { PICKER_MODE_LABELS, type PickerMode } from '../types';
 import { PICKER_CONTEXTS } from '../utils/contexts';
-import { filterCandidates } from '../utils/pickGame';
+import { filterCandidates, priorityOf } from '../utils/pickGame';
+import { SessionTimeTrial } from '../components/SessionTimeTrial';
 import { useInstalledGames } from '@/features/backlog/hooks/useInstalledGames';
 
 export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
@@ -35,7 +36,7 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
   const installed = useInstalledGames();
   const installedOnly = settings.selection.installedOnly === true;
   const { mode, contextId: selected } = settings.selection;
-  const counts = useMemo(
+  const candidatesByContext = useMemo(
     () =>
       new Map(
         PICKER_CONTEXTS.map((context) => [
@@ -46,12 +47,23 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
             mode,
             installedOnly,
             installedIds: installed.marked,
-          }).length,
+          }),
         ]),
       ),
     [games, postponed, preferences.preferences, mode, installedOnly, installed.marked],
   );
-  const count = counts.get(selected) ?? 0;
+  const selectedCandidates = candidatesByContext.get(selected);
+  const count = selectedCandidates?.length ?? 0;
+  const timeCandidates = useMemo(
+    () =>
+      new Map(
+        (selectedCandidates ?? []).map((game) => [
+          game.appid,
+          priorityOf(game, mode, preferences.preferences.get(game.appid)) ?? 1,
+        ]),
+      ),
+    [selectedCandidates, mode, preferences.preferences],
+  );
   const loading =
     status === 'loading' ||
     isBlacklistLoading ||
@@ -176,7 +188,7 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
           <ContextCard
             key={context.id}
             context={context}
-            matchingCount={counts.get(context.id) ?? 0}
+            matchingCount={candidatesByContext.get(context.id)?.length ?? 0}
             selected={selected === context.id}
             onPress={settings.setContext}
             disabled={!settings.isReady}
@@ -195,6 +207,18 @@ export function PickerScreen({ navigation }: RootStackScreenProps<'Picker'>) {
         <Text style={styles.statusTag}>{genresStatus === 'loading' ? 'Жанры…' : 'STEAM'}</Text>
       </View>
       <BacklogStatusNotice backlog={backlog} />
+      <SessionTimeTrial
+        example={false}
+        eligible={timeCandidates}
+        disabled={
+          loading ||
+          preferences.isUnavailable ||
+          !!blacklist.errorMessage ||
+          games === undefined ||
+          (installedOnly && !installed.isReady)
+        }
+        onOpen={(appid) => navigation.navigate('GameDetails', { appid })}
+      />
       <Button
         label="Что купить"
         variant="secondary"

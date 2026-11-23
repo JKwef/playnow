@@ -170,6 +170,12 @@ export function AccountAuth({ onClose }: { onClose: () => void }) {
                   Пробная регистрация · код 111111. Письмо не отправляется.
                 </Text>
               )}
+              {!__DEV__ && step === 'email' && (
+                <Text style={{ color: colors.textSecondary }}>
+                  Адрес почты сохранится в Supabase Auth для входа в Quaeso. На него придёт код
+                  подтверждения.
+                </Text>
+              )}
               {(step === 'login' || step === 'email') && (
                 <TextInput
                   style={input}

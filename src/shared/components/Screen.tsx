@@ -2,7 +2,7 @@ import { BrandBar } from './BrandBar';
 import type { ThemeColors } from '@/shared/constants/colors';
 import { useThemedStyles } from '@/shared/theme/useTheme';
 import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { spacing } from '@/shared/constants';
@@ -46,7 +46,8 @@ export function Screen({
           contentContainerStyle={[styles.content, centered && styles.centered]}
           keyboardShouldPersistTaps="handled"
           automaticallyAdjustKeyboardInsets
-          keyboardDismissMode="on-drag"
+          // Filtering can scroll the web container as it shrinks. Keep the active input focused.
+          keyboardDismissMode={Platform.OS === 'web' ? 'none' : 'on-drag'}
         >
           {children}
           {inlineFooter && footer !== undefined && (
